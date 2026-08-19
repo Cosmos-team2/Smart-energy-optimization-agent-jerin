@@ -170,9 +170,43 @@ python verify_all_checks.py
 
 ---
 
+## 🔮 Multi-Agent Orchestration & Copilot (Track 4)
+
+We have built a LangGraph-based agent pipeline and chat copilot under `apps/agents/`.
+
+### 1. Key Components
+- **`apps/agents/graph.py`**: Defines the `EnergyState` schema, nodes (`forecast`, `anomaly`, `optimizer`, `explainer`), and conditional routing logic.
+- **`apps/agents/model_router.py`**: Handles API key loading, caching via SHA-256 hash dictionaries, and fallback mocks for local run validation.
+- **`apps/agents/copilot.py`**: Hosts the chat copilot answering system ("why" vs "what-if" logic) and the isolated `what_if` re-run logic.
+- **`apps/agents/mocks/`**: Contains mock data generators for forecast and tariff profiles.
+
+### 2. Running the Agent pipeline & Copilot Runner
+
+To execute the agent graph and copilot:
+
+1. **Install new agent dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Configure API Keys (Optional):**
+   Copy `.env.example` to `.env` and fill in `GEMINI_API_KEY` and `GROQ_API_KEY`:
+   ```bash
+   copy .env.example .env
+   ```
+   *Note: If no API keys are provided, the system automatically falls back to Mock Mode using pre-recorded high-fidelity outputs, allowing instant local verification.*
+
+3. **Run the demo script:**
+   ```bash
+   python main.py
+   ```
+
+---
+
 ## 👥 Organization & Repository Info
 
 - **GitHub Organization**: [`Cosmos-team2`](https://github.com/Cosmos-team2)
 - **Repository**: [`smart-energy-optimization-agent`](https://github.com/Cosmos-team2/smart-energy-optimization-agent)
 - **Lead Maintainer**: `@Jerinarch`
 - **License**: MIT
+
