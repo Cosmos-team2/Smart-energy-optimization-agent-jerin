@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -32,6 +32,7 @@ from apps.api.mcp.geocode import geocode_address
 from apps.api.mcp.tariff import get_tariff_envelope
 from apps.api.mcp.weather import get_weather
 from apps.api.mcp.solar import get_solar
+from apps.api.analytics import query_readings, query_peak_reading
 
 app = FastAPI(
     title="Smart Energy Optimization Agent - Mock API Spine",
@@ -275,6 +276,57 @@ def solar(
         return get_solar(lat=lat, lon=lon)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"NASA POWER fetch failed: {str(e)}")
+
+
+# ==========================================
+# DuckDB Analytics Endpoints (/api/analytics)
+# ==========================================
+
+@app.get("/api/analytics/readings")
+def analytics_readings(
+    facility_id: Optional[str] = Query(None, description="Facility ID filter e.g. 'f_001'"),
+    zone_id: Optional[str] = Query(None, description="Zone ID filter e.g. 'z_hvac_3'"),
+    start: Optional[str] = Query(None, description="Start timestamp filter e.g. '2017-01-01T00:00:00'"),
+    end: Optional[str] = Query(None, description="End timestamp filter e.g. '2017-01-02T23:59:59'"),
+    agg: Literal["raw", "hourly", "daily"] = Query("raw", description="Time aggregation bucket: raw, hourly, daily"),
+    limit: int = Query(500, ge=1, le=5000, description="Max rows to return"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+):
+    """
+    DuckDB-powered analytics query endpoint with SQL filtering and time-bucket aggregation.
+    Read-only against apps/api/db/energy.duckdb.
+    """
+    try:
+        return query_readings(
+            facility_id=facility_id,
+            zone_id=zone_id,
+            start=start,
+            end=end,
+            agg=agg,
+            limit=limit,
+            offset=offset,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"DuckDB query failed: {str(e)}")
+
+
+@app.get("/api/analytics/peak")
+def analytics_peak(
+    facility_id: Optional[str] = Query(None, description="Facility ID filter e.g. 'f_001'"),
+):
+    """
+    Returns the single highest 15-min peak demand reading + timestamp for ROI / demand charge calculations.
+    Read-only query executed via DuckDB.
+    """
+    try:
+        result = query_peak_reading(facility_id=facility_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="No readings found for facility")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Peak demand query failed: {str(e)}")
 
 
 @app.websocket("/ws/telemetry")
