@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -28,6 +28,11 @@ from packages.contracts.models import (
     WebSocketEvent,
     SeedDataRecord,
 )
+from apps.api.mcp.geocode import geocode_address
+from apps.api.mcp.tariff import get_tariff_envelope
+from apps.api.mcp.weather import get_weather
+from apps.api.mcp.solar import get_solar
+from apps.api.analytics import query_readings, query_peak_reading
 
 app = FastAPI(
     title="Smart Energy Optimization Agent - Mock API Spine",
@@ -194,6 +199,134 @@ def create_mcp_envelope(
         payload=payload or {"temp_celsius": 38.0, "humidity_pct": 45.0},
         confidence=confidence,
     )
+
+
+@app.get("/api/mcp/geocode", response_model=MCPEnvelope)
+def geocode(address: str = Query(..., description="Free-text address to geocode e.g. 'Electronic City, Bengaluru'")):
+    """Geocode an address via OSM Nominatim and return MCPEnvelope (Contract 4)."""
+    try:
+        return geocode_address(address)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Nominatim geocoding failed: {str(e)}")
+
+
+@app.get("/api/mcp/tariff", response_model=MCPEnvelope)
+def tariff(
+    datetime_ist: Optional[str] = Query(
+        None,
+        description="IST datetime string (ISO 8601) to evaluate tariff for. Defaults to now.",
+        example="2026-08-14T06:00:00+05:30",
+    ),
+    ambient_temp_celsius: Optional[float] = Query(
+        None,
+        description="Ambient temperature in Celsius for stress index (omit to skip thermal factor).",
+        example=38.0,
+    ),
+    lat: Optional[float] = Query(None, description="Facility latitude for envelope location field."),
+    lon: Optional[float] = Query(None, description="Facility longitude for envelope location field."),
+):
+    """
+    Evaluate DISCOM tariff rules + stress index for a given IST datetime (Contract 4).
+    Deterministic — no external API. Source: BESCOM Karnataka ToD schedule.
+    Stress index is a derived heuristic (peak_hour + heatwave), not live telemetry.
+    """
+    from datetime import datetime as dt_cls, timezone
+    try:
+        if datetime_ist:
+            from datetime import datetime as dt_cls
+            parsed = dt_cls.fromisoformat(datetime_ist)
+        else:
+            from zoneinfo import ZoneInfo
+            parsed = dt_cls.now(ZoneInfo("Asia/Kolkata"))
+        loc = Location(lat=lat, lon=lon) if (lat is not None and lon is not None) else None
+        return get_tariff_envelope(dt=parsed, ambient_temp_celsius=ambient_temp_celsius, location=loc)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Tariff evaluation failed: {str(e)}")
+
+
+@app.get("/api/mcp/weather", response_model=MCPEnvelope)
+def weather(
+    lat: float = Query(..., description="Facility latitude", example=12.9716),
+    lon: float = Query(..., description="Facility longitude", example=77.5946),
+):
+    """
+    Fetch current weather + 12h forecast from Open-Meteo (Contract 4).
+    No API key required. Cached per location for 30 minutes — call once
+    at facility sign-up, not on every simulation tick.
+    Payload includes heatwave_flag for use by tariff stress index.
+    """
+    try:
+        return get_weather(lat=lat, lon=lon)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Open-Meteo fetch failed: {str(e)}")
+
+
+@app.get("/api/mcp/solar", response_model=MCPEnvelope)
+def solar(
+    lat: float = Query(..., description="Facility latitude", example=12.9716),
+    lon: float = Query(..., description="Facility longitude", example=77.5946),
+):
+    """
+    Fetch hourly GHI solar irradiance profile from NASA POWER (Contract 4).
+    No API key required. Returns yesterday's hourly GHI as the site solar profile.
+    Cached per location for 30 minutes — fetch once at sign-up, not per tick.
+    Frame as 'site solar profile', not live sensor data.
+    """
+    try:
+        return get_solar(lat=lat, lon=lon)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"NASA POWER fetch failed: {str(e)}")
+
+
+# ==========================================
+# DuckDB Analytics Endpoints (/api/analytics)
+# ==========================================
+
+@app.get("/api/analytics/readings")
+def analytics_readings(
+    facility_id: Optional[str] = Query(None, description="Facility ID filter e.g. 'f_001'"),
+    zone_id: Optional[str] = Query(None, description="Zone ID filter e.g. 'z_hvac_3'"),
+    start: Optional[str] = Query(None, description="Start timestamp filter e.g. '2017-01-01T00:00:00'"),
+    end: Optional[str] = Query(None, description="End timestamp filter e.g. '2017-01-02T23:59:59'"),
+    agg: Literal["raw", "hourly", "daily"] = Query("raw", description="Time aggregation bucket: raw, hourly, daily"),
+    limit: int = Query(500, ge=1, le=5000, description="Max rows to return"),
+    offset: int = Query(0, ge=0, description="Pagination offset"),
+):
+    """
+    DuckDB-powered analytics query endpoint with SQL filtering and time-bucket aggregation.
+    Read-only against apps/api/db/energy.duckdb.
+    """
+    try:
+        return query_readings(
+            facility_id=facility_id,
+            zone_id=zone_id,
+            start=start,
+            end=end,
+            agg=agg,
+            limit=limit,
+            offset=offset,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"DuckDB query failed: {str(e)}")
+
+
+@app.get("/api/analytics/peak")
+def analytics_peak(
+    facility_id: Optional[str] = Query(None, description="Facility ID filter e.g. 'f_001'"),
+):
+    """
+    Returns the single highest 15-min peak demand reading + timestamp for ROI / demand charge calculations.
+    Read-only query executed via DuckDB.
+    """
+    try:
+        result = query_peak_reading(facility_id=facility_id)
+        if not result:
+            raise HTTPException(status_code=404, detail="No readings found for facility")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Peak demand query failed: {str(e)}")
 
 
 @app.websocket("/ws/telemetry")

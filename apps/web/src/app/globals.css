@@ -1,0 +1,276 @@
+@import "leaflet/dist/leaflet.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Design Tokens ───────────────────────────────────────── */
+:root {
+  --color-bg:           #0A0A14;
+  --color-bg-deep:      #07070F;
+  --color-surface:      #16161F;
+  --color-surface-2:    #1E1E2A;
+  --color-surface-3:    #242434;
+  --color-border:       rgba(139, 92, 246, 0.15);
+  --color-border-hover: rgba(139, 92, 246, 0.35);
+  --color-accent-1:     #8B5CF6;
+  --color-accent-2:     #6366F1;
+  --color-accent-3:     #818CF8;
+  --color-accent-pink:  #C084FC;
+  --color-text:         #F0F0FF;
+  --color-muted:        #A0A0B8;
+  --color-subtle:       #6B6B8A;
+  --color-success:      #34D399;
+  --color-warning:      #FBBF24;
+  --color-error:        #F87171;
+  --gradient-accent:    linear-gradient(135deg, #8B5CF6, #6366F1, #818CF8);
+  --gradient-accent-h:  linear-gradient(90deg, #8B5CF6, #6366F1);
+  --shadow-card:        0 4px 24px rgba(0, 0, 0, 0.45);
+  --shadow-glow-sm:     0 0 16px rgba(139, 92, 246, 0.20);
+  --shadow-glow-md:     0 0 32px rgba(139, 92, 246, 0.30);
+  --radius-card:        14px;
+  --radius-pill:        9999px;
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-inter, "Inter", system-ui, sans-serif);
+  overflow-x: hidden;
+  min-height: 100vh;
+  /* Ambient glow blobs */
+  background-image:
+    radial-gradient(ellipse 800px 600px at 15% 0%,   rgba(139,92,246,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 500px at 85% 100%, rgba(99,102,241,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 400px 300px at 50% 50%,  rgba(129,140,248,0.03) 0%, transparent 55%);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-manrope, "Manrope", sans-serif);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+}
+
+/* ── Gradient text ───────────────────────────────────────────── */
+.text-gradient {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Cards ───────────────────────────────────────────────────── */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card:hover {
+  border-color: var(--color-border-hover);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55), var(--shadow-glow-sm);
+  transform: translateY(-2px);
+}
+.card-elevated {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Glass panel (map sidebar etc.) ─────────────────────────── */
+.glass-panel {
+  background: rgba(22, 22, 31, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+.glass-panel-glow {
+  background: rgba(22, 22, 31, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(139, 92, 246, 0.40);
+  box-shadow: var(--shadow-glow-md);
+}
+.glass-card-interactive {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.glass-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 92, 246, 0.35);
+  box-shadow: 0 14px 40px rgba(0,0,0,0.55), var(--shadow-glow-sm);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-accent-h);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(139,92,246,0.30);
+  transition: opacity 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.btn-primary:hover {
+  opacity: 0.92;
+  box-shadow: 0 6px 24px rgba(139,92,246,0.50);
+  transform: translateY(-1px);
+}
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-muted);
+  font-weight: 600;
+  font-size: 13px;
+  border: 1px solid var(--color-border-hover);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.btn-ghost:hover {
+  color: var(--color-text);
+  border-color: rgba(139,92,246,0.5);
+  background: rgba(139,92,246,0.08);
+}
+
+/* ── Badges / pill tags ──────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.badge-purple {
+  background: rgba(139,92,246,0.12);
+  color: #A78BFA;
+  border: 1px solid rgba(139,92,246,0.25);
+}
+.badge-emerald {
+  background: rgba(52,211,153,0.12);
+  color: #34D399;
+  border: 1px solid rgba(52,211,153,0.25);
+}
+.badge-amber {
+  background: rgba(251,191,36,0.12);
+  color: #FBBF24;
+  border: 1px solid rgba(251,191,36,0.25);
+}
+.badge-rose {
+  background: rgba(248,113,113,0.12);
+  color: #F87171;
+  border: 1px solid rgba(248,113,113,0.25);
+}
+.badge-blue {
+  background: rgba(129,140,248,0.12);
+  color: #818CF8;
+  border: 1px solid rgba(129,140,248,0.25);
+}
+.badge-cyan {
+  background: rgba(34,211,238,0.10);
+  color: #22D3EE;
+  border: 1px solid rgba(34,211,238,0.22);
+}
+
+/* ── Section tag (pill above headings) ──────────────────────── */
+.section-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(139,92,246,0.10);
+  border: 1px solid rgba(139,92,246,0.20);
+  color: #A78BFA;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── Icon container ──────────────────────────────────────────── */
+.icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(139,92,246,0.20), rgba(99,102,241,0.15));
+  border: 1px solid rgba(139,92,246,0.20);
+  color: #A78BFA;
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: rgba(139,92,246,0.30); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(139,92,246,0.55); }
+
+/* ── Selection ──────────────────────────────────────────────── */
+::selection { background: rgba(139,92,246,0.30); color: #fff; }
+
+/* -- Leaflet overrides ----------------------------------------- */
+
+/* Kill white flash: dark bg while satellite tiles load */
+.leaflet-container {
+  background: #0A0A14 !important;
+}
+
+/* Dark popup wrapper - removes white box and border */
+.leaflet-popup-content-wrapper {
+  background: rgba(22, 22, 31, 0.97) !important;
+  border: 1px solid rgba(139, 92, 246, 0.30) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.60) !important;
+  color: #F0F0FF !important;
+  padding: 0 !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+.leaflet-popup-tip-container { display: none !important; }
+.leaflet-popup-close-button {
+  color: #6B6B8A !important;
+  top: 6px !important;
+  right: 8px !important;
+}
+.leaflet-popup-close-button:hover { color: #A78BFA !important; }
+.leaflet-control-zoom a {
+  background: rgba(22, 22, 31, 0.90) !important;
+  border-color: rgba(139, 92, 246, 0.20) !important;
+  color: #A0A0B8 !important;
+}
+.leaflet-control-zoom a:hover {
+  background: rgba(139, 92, 246, 0.15) !important;
+  color: #F0F0FF !important;
+}
+.leaflet-control-attribution {
+  background: rgba(10, 10, 20, 0.75) !important;
+  color: #6B6B8A !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a { color: #8B5CF6 !important; }

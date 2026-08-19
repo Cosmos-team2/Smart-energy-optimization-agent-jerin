@@ -1,6 +1,6 @@
 # FastAPI Mock Server Spine (`apps/api`)
 
-Lightweight FastAPI mock server providing canonical contract endpoints and serving real seed dataset fixtures (`seed_facility_data.json` & `rec_042.json`).
+Lightweight FastAPI mock server providing canonical contract endpoints, MCP tool integrations, and DuckDB time-series analytics.
 
 ---
 
@@ -10,7 +10,7 @@ Ensure Python 3.11+ is installed.
 
 ```bash
 # Install dependencies
-pip install fastapi uvicorn pydantic
+pip install -r apps/api/requirements.txt
 ```
 
 ---
@@ -48,5 +48,11 @@ Once running, access the server at `http://127.0.0.1:8000`:
 - **Entity Model (Facility)**: `GET http://127.0.0.1:8000/api/facility/f_001`
 - **Seed Readings**: `GET http://127.0.0.1:8000/api/readings?limit=100`
 - **Recommendation Object**: `GET http://127.0.0.1:8000/api/recommendations/rec_042`
-- **MCP Envelope**: `POST http://127.0.0.1:8000/api/mcp/envelope`
+- **MCP Envelope Wrapper**: `POST http://127.0.0.1:8000/api/mcp/envelope`
+- **MCP Geocoding (Nominatim)**: `GET http://127.0.0.1:8000/api/mcp/geocode?address=...`
+- **MCP Tariff Rule Engine**: `GET http://127.0.0.1:8000/api/mcp/tariff?datetime_ist=...`
+- **MCP Weather (Open-Meteo)**: `GET http://127.0.0.1:8000/api/mcp/weather?lat=...&lon=...`
+- **MCP Solar (NASA POWER)**: `GET http://127.0.0.1:8000/api/mcp/solar?lat=...&lon=...`
+- **DuckDB Analytics Readings**: `GET http://127.0.0.1:8000/api/analytics/readings?agg=raw|hourly|daily`
+- **DuckDB Analytics Peak**: `GET http://127.0.0.1:8000/api/analytics/peak?facility_id=f_001`
 - **WebSocket Telemetry Stream**: `WS ws://127.0.0.1:8000/ws/telemetry`
