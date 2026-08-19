@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { badgeForPhase } from "./story.js";
 import { COLORS } from "./palette.js";
@@ -16,7 +16,6 @@ function OptiGridLogo() {
         display: "flex",
         alignItems: "center",
         gap: 9,
-        cursor: "pointer",
         userSelect: "none",
       }}
     >
@@ -58,50 +57,6 @@ function OptiGridLogo() {
         OptiGrid
       </span>
     </div>
-  );
-}
-
-// ─── Nav link ────────────────────────────────────────────────────────────────
-function NavLink({ label, active, onClick }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: "none",
-        border: "none",
-        padding: "4px 2px",
-        fontFamily: "'Inter', system-ui, sans-serif",
-        fontSize: 13.5,
-        fontWeight: 500,
-        color: active
-          ? COLORS.purpleGlow
-          : hovered
-          ? COLORS.white
-          : COLORS.textMuted,
-        letterSpacing: 0.1,
-        cursor: "pointer",
-        transition: "color 0.2s",
-        position: "relative",
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {label}
-      {active && (
-        <span
-          style={{
-            position: "absolute",
-            bottom: -2,
-            left: 0,
-            right: 0,
-            height: 1.5,
-            background: COLORS.purple,
-            borderRadius: 1,
-          }}
-        />
-      )}
-    </button>
   );
 }
 
@@ -188,37 +143,13 @@ function StoryBadge({ badge }) {
   );
 }
 
-const NAV_ITEMS = ["platform", "solutions", "resources", "about", "pricing"];
-const NAV_LABELS = { platform: "Platform", solutions: "Solutions", resources: "Resources", about: "About Us", pricing: "Pricing" };
-
 // ─── Main overlay ────────────────────────────────────────────────────────────
-export default function HeroOverlay({ phase, onNavClick, onOpenSignIn, onOpenDemo, onOpenHowItWorks }) {
+export default function HeroOverlay({ phase, onOpenHowItWorks }) {
   const navigate = useNavigate();
   const badge = badgeForPhase(phase);
 
   const [exploreHover, setExploreHover] = useState(false);
   const [watchHover, setWatchHover] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [activeSection, setActiveSection] = useState(null);
-
-  useEffect(() => {
-    function onScroll() {
-      const y = window.scrollY;
-      setScrolled(y > 24);
-
-      // Lightweight scroll-spy: whichever section's top has crossed a
-      // point near the top of the viewport is the active one.
-      let current = null;
-      for (const id of NAV_ITEMS) {
-        const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top <= 140) current = id;
-      }
-      setActiveSection(current);
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   return (
     <>
@@ -226,14 +157,6 @@ export default function HeroOverlay({ phase, onNavClick, onOpenSignIn, onOpenDem
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes scrollBounce {
-          0%, 100% { transform: translateY(0); }
-          50%       { transform: translateY(5px); }
-        }
-        @keyframes pulseRing {
-          0%   { opacity: 0.7; transform: scale(1); }
-          100% { opacity: 0; transform: scale(2); }
         }
       `}</style>
 
@@ -245,7 +168,7 @@ export default function HeroOverlay({ phase, onNavClick, onOpenSignIn, onOpenDem
           fontFamily: "'Inter', system-ui, sans-serif",
         }}
       >
-        {/* ── Navigation bar ─────────────────────────────────────────────── */}
+        {/* ── Navigation bar — logo only ────────────────────────────────── */}
         <nav
           style={{
             position: "fixed",
@@ -255,77 +178,13 @@ export default function HeroOverlay({ phase, onNavClick, onOpenSignIn, onOpenDem
             height: 76,
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
             padding: "0 32px",
             pointerEvents: "auto",
-            background: scrolled ? "rgba(7,7,15,0.86)" : "linear-gradient(to bottom, rgba(7,7,15,0.75) 0%, rgba(7,7,15,0) 100%)",
-            backdropFilter: scrolled ? "blur(14px)" : "none",
-            borderBottom: scrolled ? "1px solid rgba(139,92,246,0.16)" : "1px solid transparent",
-            transition: "background 0.25s, backdrop-filter 0.25s, border-color 0.25s",
+            background: "linear-gradient(to bottom, rgba(7,7,15,0.75) 0%, rgba(7,7,15,0) 100%)",
             zIndex: 100,
           }}
         >
-          {/* Logo */}
-          <div onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <OptiGridLogo />
-          </div>
-
-          {/* Center nav links */}
-          <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-            {NAV_ITEMS.map((id) => (
-              <NavLink
-                key={id}
-                label={NAV_LABELS[id]}
-                active={activeSection === id}
-                onClick={() => onNavClick(id)}
-              />
-            ))}
-          </div>
-
-          {/* Right actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button
-              onClick={onOpenSignIn}
-              style={{
-                background: "none",
-                border: "none",
-                fontFamily: "'Inter', system-ui, sans-serif",
-                fontSize: 13.5,
-                fontWeight: 500,
-                color: COLORS.textMuted,
-                cursor: "pointer",
-                padding: "4px 8px",
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={onOpenDemo}
-              style={{
-                padding: "7px 18px",
-                borderRadius: 7,
-                border: "1px solid rgba(139,92,246,0.5)",
-                background: "rgba(139,92,246,0.12)",
-                color: "#c4b5fd",
-                fontFamily: "'Inter', system-ui, sans-serif",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                letterSpacing: 0.2,
-                transition: "background 0.2s, border-color 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(139,92,246,0.22)";
-                e.currentTarget.style.borderColor = "rgba(139,92,246,0.7)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(139,92,246,0.12)";
-                e.currentTarget.style.borderColor = "rgba(139,92,246,0.5)";
-              }}
-            >
-              Book a Demo
-            </button>
-          </div>
+          <OptiGridLogo />
         </nav>
 
         {/* ── Hero headline block — left, mid-vertical ────────────────────── */}
@@ -406,8 +265,8 @@ export default function HeroOverlay({ phase, onNavClick, onOpenSignIn, onOpenDem
             your facilities.
           </p>
 
-          {/* CTAs */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {/* CTAs — See How It Works stacked under Explore Your Facility */}
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 14 }}>
             {/* Primary CTA */}
             <button
               id="hero-cta-explore"
@@ -450,7 +309,7 @@ export default function HeroOverlay({ phase, onNavClick, onOpenSignIn, onOpenDem
               style={{
                 background: "none",
                 border: "none",
-                padding: "11px 4px",
+                padding: "4px 4px",
                 fontFamily: "'Inter', system-ui, sans-serif",
                 fontSize: 12.5,
                 fontWeight: 600,
@@ -530,55 +389,6 @@ export default function HeroOverlay({ phase, onNavClick, onOpenSignIn, onOpenDem
               label="Recommendation"
               value="₹1,30,000 estimated savings"
             />
-          </div>
-
-          {/* Scroll indicator — right of metrics */}
-          <div
-            style={{
-              position: "absolute",
-              bottom: 14,
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 6,
-              pointerEvents: "none",
-              opacity: 0.45,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: 2.5,
-                textTransform: "uppercase",
-                color: COLORS.textDim,
-              }}
-            >
-              Scroll to explore
-            </span>
-            <div
-              style={{
-                width: 22,
-                height: 36,
-                border: "1px solid rgba(240,237,255,0.2)",
-                borderRadius: 11,
-                display: "flex",
-                justifyContent: "center",
-                paddingTop: 6,
-              }}
-            >
-              <div
-                style={{
-                  width: 3,
-                  height: 7,
-                  borderRadius: 2,
-                  background: "rgba(139,92,246,0.7)",
-                  animation: "scrollBounce 1.8s ease-in-out infinite",
-                }}
-              />
-            </div>
           </div>
         </div>
       </div>
