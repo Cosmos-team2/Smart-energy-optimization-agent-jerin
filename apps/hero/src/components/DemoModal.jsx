@@ -1,6 +1,6 @@
 import { useState } from "react";
 import ModalShell, { fieldLabelStyle, fieldInputStyle, submitButtonStyle } from "./ModalShell.jsx";
-import { COLORS } from "../hero/palette.js";
+import { COLORS } from "../palette.js";
 
 const EMPTY = { name: "", email: "", company: "", facilityType: "" };
 

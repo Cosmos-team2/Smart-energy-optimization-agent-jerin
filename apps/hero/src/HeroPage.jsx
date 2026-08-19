@@ -8,7 +8,7 @@ import { COLORS } from "./palette.js";
 import { STORY_STEPS, frameForPhase } from "./story.js";
 import { FOCUS_PRESETS } from "./scene/layout.js";
 
-import HowItWorksModal from "../components/HowItWorksModal.jsx";
+import HowItWorksModal from "./components/HowItWorksModal.jsx";
 
 export default function HeroPage() {
   const [stepIdx, setStepIdx] = useState(0);

@@ -1,14 +1,16 @@
 // Hero story cycle: NORMAL -> PEAK RISK -> transition -> OPTIMIZED -> loop.
 // All kW figures come from the same real, already-verified sources the
-// operational Twin uses — nothing here is invented.
+// operational Digital Twin (apps/twin) uses — nothing here is invented.
+// This app and apps/twin both import from packages/shared/twin-data/
+// rather than each keeping their own copy of the real telemetry/derivation.
 import {
   BASELINE_PEAK_KW,
   BASELINE_TIMELINE,
   OPTIMIZED_PEAK_KW,
   OPTIMIZED_TIMELINE,
   SPIKE_INDEX,
-} from "../data/optimization.js";
-import { CONTRACT_LIMIT_KW } from "../scene/config.js";
+} from "../../../packages/shared/twin-data/optimization.js";
+import { CONTRACT_LIMIT_KW } from "../../../packages/shared/twin-data/contractLimit.js";
 
 export { BASELINE_PEAK_KW, OPTIMIZED_PEAK_KW, CONTRACT_LIMIT_KW };
 

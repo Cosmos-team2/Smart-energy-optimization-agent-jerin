@@ -1,4 +1,4 @@
-import { COLORS } from "../hero/palette.js";
+import { COLORS } from "../palette.js";
 
 export const sectionWrap = (bg = COLORS.bg) => ({
   position: "relative",

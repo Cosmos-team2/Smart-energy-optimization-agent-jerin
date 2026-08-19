@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { COLORS } from "../hero/palette.js";
+import { COLORS } from "../palette.js";
 
 // Shared shell for every OptiGrid modal (Demo, Sign In, How It Works) —
 // backdrop, panel chrome, close button, escape-to-close. Keeps the three

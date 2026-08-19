@@ -1,4 +1,4 @@
-import { COLORS } from "../hero/palette.js";
+import { COLORS } from "../palette.js";
 import { sectionWrap, eyebrowStyle, headingStyle, bodyStyle } from "./sectionStyles.js";
 
 const RESOURCES = [

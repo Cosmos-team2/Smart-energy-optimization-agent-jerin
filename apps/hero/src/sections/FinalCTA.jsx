@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { COLORS } from "../hero/palette.js";
+import { COLORS } from "../palette.js";
 
 export default function FinalCTA() {
   const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import ModalShell from "./ModalShell.jsx";
-import { COLORS } from "../hero/palette.js";
+import { COLORS } from "../palette.js";
 
 const STEPS = [
   { n: "01", title: "Monitor", desc: "Continuous real-time visibility into every zone's load." },

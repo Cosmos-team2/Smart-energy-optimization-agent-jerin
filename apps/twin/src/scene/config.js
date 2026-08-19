@@ -2,9 +2,11 @@
 // zone's visuals come from spike-data.json (base_kw / hvac_kw / comp_kw),
 // which is real seed_facility_data.json data pulled in by App.
 
-// 500.0 kW is the contract limit cited in rec_042.json's reasoning text:
-// "...exceeding the 500.0 kW contract limit." Extracted here, not invented.
-export const CONTRACT_LIMIT_KW = 500.0;
+// CONTRACT_LIMIT_KW moved to packages/shared/twin-data/ — it's used by both
+// this app (Digital Twin) and apps/hero (marketing hero's story sequence).
+// Re-exported here unchanged so every existing import of it from this file
+// keeps working without modification.
+export { CONTRACT_LIMIT_KW } from "../../../../packages/shared/twin-data/contractLimit.js";
 
 export const POWER_NODE_POSITION = [0, 0, -6];
 

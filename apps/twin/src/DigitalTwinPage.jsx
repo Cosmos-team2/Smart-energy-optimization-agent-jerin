@@ -90,7 +90,7 @@ function staticCompBadge(mode, index) {
   return null;
 }
 
-export default function Twin() {
+export default function DigitalTwin() {
   const [mode, setMode] = useState("baseline");
   const [index, setIndex] = useState(0);
   const [simulating, setSimulating] = useState(false);

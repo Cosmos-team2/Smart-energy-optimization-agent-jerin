@@ -1,6 +1,6 @@
 import { useState } from "react";
 import ModalShell, { fieldLabelStyle, fieldInputStyle, submitButtonStyle } from "./ModalShell.jsx";
-import { COLORS } from "../hero/palette.js";
+import { COLORS } from "../palette.js";
 
 // UI prototype only — no authentication is implemented.
 export default function SignInModal({ open, onClose }) {
