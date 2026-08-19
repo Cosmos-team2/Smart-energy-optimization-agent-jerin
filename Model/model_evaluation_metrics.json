@@ -1,0 +1,49 @@
+{
+  "status": "SUCCESS",
+  "dataset_size_rows": 34368,
+  "feature_matrix_columns": [
+    "total_kw_lag15m",
+    "total_kw_lag1h",
+    "total_kw_lag24h",
+    "total_kw_lag7d",
+    "total_kw_rolling_max_1h",
+    "total_kw_rolling_mean_4h",
+    "temp_celsius",
+    "humidity_pct",
+    "solar_ghi",
+    "sin_hour",
+    "cos_hour",
+    "day_of_week",
+    "is_weekend",
+    "tod_rate_inr",
+    "is_peak_hour_flag"
+  ],
+  "forecasting_metrics": {
+    "P10": {
+      "RMSE": 55.98,
+      "RMSE_pct": 9.36,
+      "MAE": 21.76,
+      "R2_Score": 0.8925
+    },
+    "P50": {
+      "RMSE": 18.1,
+      "RMSE_pct": 3.03,
+      "MAE": 6.74,
+      "R2_Score": 0.9888
+    },
+    "P90": {
+      "RMSE": 31.68,
+      "RMSE_pct": 5.3,
+      "MAE": 15.72,
+      "R2_Score": 0.9656
+    }
+  },
+  "anomaly_detection_metrics": {
+    "Precision": 0.4797,
+    "Recall": 0.6471,
+    "F1_Score": 0.5509,
+    "Detected_Anomalies_Count": 688,
+    "Ground_Truth_Spikes_Count": 510
+  },
+  "data_leakage_checks_passed": true
+}
