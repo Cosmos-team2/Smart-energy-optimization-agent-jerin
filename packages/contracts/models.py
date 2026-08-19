@@ -1,5 +1,25 @@
-from typing import List, Optional, Literal
+from typing import List, Optional, Dict, Any, Literal
 from pydantic import BaseModel, Field
+
+# ==========================================
+# 1. Contract 4: MCP Tool Envelope
+# ==========================================
+
+class Location(BaseModel):
+    lat: float = Field(..., description="Latitude")
+    lon: float = Field(..., description="Longitude")
+
+class MCPEnvelope(BaseModel):
+    source: str = Field(..., description="Source of context data, e.g. open-meteo, nasa-power, discom-rules, osm-overpass")
+    timestamp: str = Field(..., description="ISO 8601 IST timestamp e.g. 2026-08-14T06:00:00+05:30")
+    location: Optional[Location] = Field(None, description="Geographic location of facility")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Raw context tool data payload")
+    confidence: float = Field(1.0, ge=0.0, le=1.0, description="Confidence score of context data (0.0 to 1.0)")
+
+
+# ==========================================
+# 2. Contract 3: Recommendation Object (Jerin's Base Extended)
+# ==========================================
 
 class ActionDetail(BaseModel):
     action_type: str = Field(..., description="Type of micro-action e.g. pre_cool, delay_start, soft_ramp")
@@ -8,7 +28,7 @@ class ActionDetail(BaseModel):
     delay_minutes: Optional[int] = Field(None, description="Delay duration in minutes")
     temp_delta_celsius: Optional[float] = Field(None, description="Temperature adjustment in Celsius")
     ramp_cap_pct: Optional[float] = Field(None, description="Capacity percentage during ramp window")
-    time_window: Optional[str] = Field(None, description="Operational time window")
+    time_window: Optional[str] = Field(None, description="Operational time window string e.g. 05:00-05:45 AM")
 
 class RecommendationObject(BaseModel):
     id: str = Field(..., description="Unique recommendation ID e.g. rec_042")
@@ -26,3 +46,62 @@ class RecommendationObject(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Agent confidence score (0.0 to 1.0)")
     requires_approval: bool = Field(True, description="Human approval gate flag")
     status: Literal["proposed", "approved", "rejected", "executed"] = Field("proposed", description="Approval status")
+
+
+# ==========================================
+# 3. Contract 2: WebSocket Event Schema
+# ==========================================
+
+class WebSocketEvent(BaseModel):
+    event: Literal["reading", "alert", "recommendation", "approval_update"] = Field(
+        ..., description="Event type emitted over real-time telemetry stream"
+    )
+    facility_id: str = Field(..., description="Facility ID e.g. f_001")
+    zone_id: Optional[str] = Field(None, description="Zone ID e.g. z_hvac_3")
+    timestamp: str = Field(..., description="ISO 8601 IST timestamp")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Event payload dictionary")
+
+
+# ==========================================
+# 4. Contract 1: Entity Model
+# ==========================================
+
+class Equipment(BaseModel):
+    id: str = Field(..., description="Human-scannable equipment ID e.g. eq_chiller_2, eq_comp_1")
+    zone_id: str = Field(..., description="Parent zone ID e.g. z_hvac_3")
+    name: str = Field(..., description="Human-readable equipment name")
+    type: str = Field(..., description="Equipment category e.g. hvac, compressor, motor, solar_pv")
+    rated_power_kw: float = Field(..., description="Rated power capacity in kW")
+
+class Zone(BaseModel):
+    id: str = Field(..., description="Human-scannable zone ID e.g. z_hvac_3")
+    facility_id: str = Field(..., description="Parent facility ID e.g. f_001")
+    name: str = Field(..., description="Human-readable zone name")
+    equipments: List[Equipment] = Field(default_factory=list, description="List of equipment in this zone")
+
+class Facility(BaseModel):
+    id: str = Field(..., description="Human-scannable facility ID e.g. f_001")
+    name: str = Field(..., description="Human-readable facility name")
+    address: str = Field(..., description="Physical address of commercial campus / factory")
+    location: Optional[Location] = Field(None, description="Geographical coordinates")
+    zones: List[Zone] = Field(default_factory=list, description="Zones within facility")
+
+
+# ==========================================
+# 5. Contract 5: Seed Dataset Record
+# ==========================================
+
+class SeedDataRecord(BaseModel):
+    Datetime: str = Field(..., description="ISO 8601 IST timestamp e.g. 2017-01-01T00:00:00.000")
+    PJME_MW: Optional[float] = Field(None, description="Raw PJM energy MW value")
+    total_kw: float = Field(..., description="Total campus power demand in kW")
+    base_kw: float = Field(..., description="Base load power demand in kW")
+    hvac_kw: float = Field(..., description="HVAC load power demand in kW")
+    comp_kw: float = Field(..., description="Compressor load power demand in kW")
+    is_spike_event: int = Field(0, description="1 if synthetic spike event injected, else 0")
+    temp_celsius: float = Field(..., description="Ambient temperature in Celsius")
+    humidity_pct: float = Field(..., description="Relative humidity percentage")
+    solar_ghi: float = Field(..., description="Global Horizontal Irradiance in W/m²")
+    tod_rate_inr: float = Field(..., description="Time-of-Day electricity rate in INR per kWh")
+    is_peak_hour_flag: int = Field(0, description="1 if peak tariff hour, else 0")
+    demand_charge_rate_inr: float = Field(..., description="Monthly demand charge rate in INR per kW peak")
