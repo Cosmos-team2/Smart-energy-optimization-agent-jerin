@@ -1,0 +1,39 @@
+# =====================================================================
+# Git Ignore Rules - Smart Energy Consumption Optimization Agent
+# =====================================================================
+
+# Exclude Raw Dataset Source Files (per user requirement)
+# Master final dataset `historical_training_campus_data.csv` is explicitly included.
+Energy Consumption/
+
+# Python byte-code & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# Testing & Linting
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# IDE / Editor configuration
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# System / OS files
+.DS_Store
+Thumbs.db
+desktop.ini
