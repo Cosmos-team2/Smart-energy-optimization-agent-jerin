@@ -3,14 +3,17 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { IDLE_VIEW } from "./scene/layout.js";
 
-const DRIFT_SPEED = 0.028;
+// Idle drift is a BOUNDED oscillation around IDLE_VIEW.theta (never an
+// unbounded increment) — this is what guarantees the camera can never
+// rotate all the way around into the unpopulated back side of the campus.
+const DRIFT_SPEED = 0.12;
+const DRIFT_AMPLITUDE = 0.32;
 
-// Cinematic spherical camera: slow auto-drift when idle, subtle
-// mouse-driven parallax layered on top (never baked into the persisted
-// angle, so it can't accumulate drift), and a smooth "fly-to" whenever
-// `focus` (a {target, radius, theta, phi} preset) is set. `paused` stops
-// the idle drift (used while something is hovered/selected, so the camera
-// doesn't slide the target out from under a stationary mouse mid-tooltip).
+// Hard azimuth bounds for idle/parallax framing. Focus presets (fly-to on
+// click) are trusted, hand-tuned values and are exempt from this clamp.
+const AZIMUTH_MIN = IDLE_VIEW.theta - 0.6;
+const AZIMUTH_MAX = IDLE_VIEW.theta + 0.6;
+
 export default function CameraRig({ focus, paused }) {
   const { camera, pointer } = useThree();
   const idleTheta = useRef(IDLE_VIEW.theta);
@@ -21,9 +24,15 @@ export default function CameraRig({ focus, paused }) {
   const workingPos = useRef(new THREE.Vector3());
   const goalTargetVec = useRef(new THREE.Vector3());
 
-  useFrame((_, rawDelta) => {
+  useFrame((state, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05);
-    if (!paused && !focus) idleTheta.current += delta * DRIFT_SPEED;
+    const t = state.clock.elapsedTime;
+
+    // Bounded sinusoidal idle drift — smoothly frozen (not snapped) while
+    // paused (hover/select) or while a focus fly-to is active.
+    const driftTarget =
+      !paused && !focus ? IDLE_VIEW.theta + Math.sin(t * DRIFT_SPEED) * DRIFT_AMPLITUDE : idleTheta.current;
+    idleTheta.current += (driftTarget - idleTheta.current) * Math.min(1, delta * 1.5);
 
     const goalTheta = focus ? focus.theta : idleTheta.current;
     const goalPhi = focus ? focus.phi : IDLE_VIEW.phi;
@@ -42,8 +51,9 @@ export default function CameraRig({ focus, paused }) {
     const parallaxTheta = pointer.x * 0.09;
     const parallaxPhi = THREE.MathUtils.clamp(pointer.y * -0.04, -0.1, 0.1);
 
-    const theta = curTheta.current + parallaxTheta;
-    const phi = THREE.MathUtils.clamp(curPhi.current + parallaxPhi, 0.45, 1.45);
+    let theta = curTheta.current + parallaxTheta;
+    if (!focus) theta = THREE.MathUtils.clamp(theta, AZIMUTH_MIN, AZIMUTH_MAX);
+    const phi = THREE.MathUtils.clamp(curPhi.current + parallaxPhi, 0.5, 1.35);
     const r = curRadius.current;
 
     workingPos.current.set(

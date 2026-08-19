@@ -30,8 +30,14 @@ export default function Hotspot({
     const target = showRing ? 1 : 0.0001;
     tmpScale.set(target, target, target);
     ringRef.current.scale.lerp(tmpScale, 0.18);
-    ringRef.current.rotation.z += 0.006;
+    ringRef.current.rotation.z += 0.005;
   });
+
+  // Status color mapping
+  const isHot = status?.includes("SPIKE") || status?.includes("HIGH");
+  const isWarn = status?.includes("RAMP") || status?.includes("DELAYED");
+  const statusColor = isHot ? COLORS.warnRed : isWarn ? COLORS.warnAmber : COLORS.energyCyan;
+  const ringColor = active ? COLORS.purpleGlow : COLORS.purple;
 
   return (
     <group
@@ -53,40 +59,95 @@ export default function Hotspot({
     >
       {children}
 
+      {/* Selection / hover ring — OptiGrid purple */}
       <mesh ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
         <ringGeometry args={[ringRadius * 0.86, ringRadius, 48]} />
         <meshBasicMaterial
-          color={active ? COLORS.warnAmber : COLORS.energyCyan}
+          color={ringColor}
           transparent
-          opacity={0.85}
+          opacity={0.75}
           toneMapped={false}
         />
       </mesh>
 
+      {/* Tooltip — shown on hover or select */}
       {showRing && label && (
-        <Html position={[0, Math.min(ringRadius * 0.5, 0.9) + 0.9, 0]} center occlude={false} zIndexRange={[20, 0]}>
+        <Html
+          position={[0, Math.min(ringRadius * 0.5, 0.9) + 1.1, 0]}
+          center
+          occlude={false}
+          zIndexRange={[20, 0]}
+        >
           <div
             style={{
               pointerEvents: "none",
-              minWidth: 150,
-              padding: "8px 12px",
-              background: "rgba(6,10,13,0.88)",
-              border: `1px solid ${active ? "rgba(255,184,77,0.5)" : "rgba(63,233,214,0.4)"}`,
+              minWidth: 148,
+              padding: "9px 13px",
+              background: "rgba(7,7,15,0.92)",
+              border: `1px solid ${active ? "rgba(167,139,250,0.5)" : "rgba(139,92,246,0.3)"}`,
               borderRadius: 8,
               color: COLORS.white,
-              fontFamily: "'Segoe UI', system-ui, sans-serif",
-              boxShadow: "0 8px 28px rgba(0,0,0,0.5)",
+              fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
+              boxShadow: "0 8px 28px rgba(0,0,0,0.6), 0 0 16px rgba(139,92,246,0.08)",
               whiteSpace: "nowrap",
+              backdropFilter: "blur(8px)",
             }}
           >
-            <div style={{ fontSize: 12.5, fontWeight: 700, letterSpacing: 0.3 }}>{label}</div>
+            {/* Equipment name */}
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: 1.6,
+                textTransform: "uppercase",
+                color: "rgba(240,237,255,0.55)",
+                marginBottom: 4,
+              }}
+            >
+              {label}
+            </div>
+
+            {/* Load value — large */}
             {load && (
-              <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>
-                Load <span style={{ fontWeight: 700, color: COLORS.energyCyan }}>{load}</span>
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: COLORS.white,
+                  lineHeight: 1.1,
+                  marginBottom: 5,
+                  fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif",
+                }}
+              >
+                {load}
               </div>
             )}
+
+            {/* Status dot + label */}
             {status && (
-              <div style={{ fontSize: 10.5, opacity: 0.7, marginTop: 2, letterSpacing: 0.5 }}>{status}</div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 5,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: 0.5,
+                  color: statusColor,
+                }}
+              >
+                <span
+                  style={{
+                    width: 5,
+                    height: 5,
+                    borderRadius: "50%",
+                    background: statusColor,
+                    flexShrink: 0,
+                    boxShadow: `0 0 5px ${statusColor}`,
+                  }}
+                />
+                {status}
+              </div>
             )}
           </div>
         </Html>

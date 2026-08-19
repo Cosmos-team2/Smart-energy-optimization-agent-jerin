@@ -14,6 +14,7 @@ import Substation from "./Substation.jsx";
 import GridMast from "./GridMast.jsx";
 import EnergyNetwork from "./EnergyNetwork.jsx";
 import Hotspot from "./Hotspot.jsx";
+import PointerEnergyField from "./PointerEnergyField.jsx";
 
 import { LAYOUT } from "./layout.js";
 import { STATE_STYLE, channelsForPhase } from "./energyStates.js";
@@ -66,7 +67,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
           id="ahu"
           position={LAYOUT.ahu}
           ringRadius={1.1}
-          label="Air Handling Unit — z_hvac_3"
+          label="HVAC PLANT"
           load={fmtKw(current.hvac_kw)}
           status={hvacStatus}
           hovered={hoveredId === "ahu"}
@@ -81,7 +82,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
           id="chillers"
           position={LAYOUT.chillers[0]}
           ringRadius={1.6}
-          label="Chiller Plant — eq_chiller_2"
+          label="CHILLER PLANT"
           load={fmtKw(current.hvac_kw)}
           status={hvacStatus}
           hovered={hoveredId === "chillers"}
@@ -101,7 +102,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
           id="coolingTower"
           position={LAYOUT.coolingTower}
           ringRadius={0.95}
-          label="Cooling Tower"
+          label="COOLING TOWER"
           status="AUXILIARY"
           hovered={hoveredId === "coolingTower"}
           active={selectedId === "coolingTower"}
@@ -120,7 +121,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
         id="compressor"
         position={LAYOUT.compressor}
         ringRadius={1.3}
-        label="Air Compressor 1 — z_compressor_1"
+        label="COMPRESSOR"
         load={fmtKw(current.comp_kw)}
         status={compressorStatus}
         hovered={hoveredId === "compressor"}
@@ -135,7 +136,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
         id="airReceiver"
         position={LAYOUT.airReceiver}
         ringRadius={0.75}
-        label="Air Receiver Tank"
+        label="AIR RECEIVER"
         status="AUXILIARY"
         hovered={hoveredId === "airReceiver"}
         active={selectedId === "airReceiver"}
@@ -149,7 +150,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
         id="transformer"
         position={LAYOUT.transformer}
         ringRadius={1.5}
-        label="Grid Transformer"
+        label="TRANSFORMER"
         load={fmtKw(current.total_kw)}
         status={phase === "peak" ? "HIGH DEMAND" : "NORMAL"}
         hovered={hoveredId === "transformer"}
@@ -164,7 +165,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
         id="substation"
         position={LAYOUT.substation}
         ringRadius={1.7}
-        label="Electrical Switchgear — z_baseload_1"
+        label="GRID IMPORT"
         load={fmtKw(current.base_kw)}
         status="NORMAL"
         hovered={hoveredId === "substation"}
@@ -176,6 +177,7 @@ export default function FacilityScene({ phase, current, hoveredId, selectedId, o
       </Hotspot>
 
       <EnergyNetwork phase={phase} />
+      <PointerEnergyField />
     </group>
   );
 }
