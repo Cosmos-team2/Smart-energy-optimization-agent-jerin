@@ -1054,8 +1054,100 @@ def create_pdf(filename="Smart_Energy_Optimization_Agent_Data_Analyst_Roadmap.pd
     story.append(s15_box_table)
     story.append(Spacer(1, 5))
 
+    # 16. Industry-Standard Model Selection Framework & Architectural Rationale
+    story.append(Paragraph("16. Industry-Standard Model Selection Framework & Architectural Rationale", h1_style))
+    p_s16_intro = ("To ensure our Smart Energy Consumption Optimization Agent achieves commercial viability, maximum hackathon jury impact, "
+                   "and enterprise industry-standard performance, this section provides an exhaustive blueprint of the <b>exact ML, AI, Optimization, and LLM models</b> "
+                   "to select across the 4 core decision layers of the platform — complete with deep technical rationales, baseline comparisons, and trade-off analyses.")
+    story.append(Paragraph(p_s16_intro, body_style))
+
+    story.append(Paragraph("A. Complete 4-Layer Model Selection & Evaluation Matrix", h2_style))
+    
+    models_table_data = [
+        [Paragraph("Decision Layer", table_header_style), Paragraph("Recommended Production Model", table_header_style), Paragraph("Baseline / Alternative Model", table_header_style), Paragraph("Primary Selection Rationale", table_header_style), Paragraph("Target Performance Metric", table_header_style)],
+        [
+            Paragraph("<b>Layer 1: Forecasting Engine</b>", table_cell_style),
+            Paragraph("<b>LightGBM / XGBoost Regressor Ensemble</b> + Quantile Regressors (P10, P50, P90)", table_cell_style),
+            Paragraph("Prophet / LSTM Deep Neural Network", table_cell_style),
+            Paragraph("<b>Sub-5ms inference speed</b>, native tabular feature importance (SHAP), and exact P90 peak risk quantification without heavy GPU overhead.", table_cell_style),
+            Paragraph("<b>RMSE < 5%</b> on 15-min test splits; Sub-50ms DuckDB loop.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>Layer 2: Anomaly Engine</b>", table_cell_style),
+            Paragraph("<b>Isolation Forest</b> + Rolling 3-Sigma ($3\\sigma$) Z-Score Surge Estimator", table_cell_style),
+            Paragraph("Autoencoder Neural Network / One-Class SVM", table_cell_style),
+            Paragraph("Instant multi-variate anomaly detection (HVAC draw during cool weather) & sub-millisecond 15-min rate-of-change spike alerting.", table_cell_style),
+            Paragraph("<b>Precision > 95%</b> on 06:00 AM startup coincidence spikes.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>Layer 3: Optimization Core</b>", table_cell_style),
+            Paragraph("<b>MILP (Mixed-Integer Linear Programming)</b> via PuLP / SciPy / Google OR-Tools", table_cell_style),
+            Paragraph("Reinforcement Learning (PPO / SAC) / Heuristic Genetic Rules", table_cell_style),
+            Paragraph("<b>100% deterministic safety & constraint satisfaction</b> (thermal deadbands ±1.5°C, duty cycles) + mathematical optimality proof for tariff minimization.", table_cell_style),
+            Paragraph("<b>Rs. 1.3L/mo peak cost savings</b> with 0 thermal violations.", table_cell_style)
+        ],
+        [
+            Paragraph("<b>Layer 4: Agent & Explainer Core</b>", table_cell_style),
+            Paragraph("<b>Dual-LLM Architecture:</b><br/>• <i>Groq (Llama 3.3 70B):</i> Fast Tool Calling<br/>• <i>Google Gemini (1.5 Flash):</i> Reasoning & Rule Citation", table_cell_style),
+            Paragraph("Single Monolithic OpenAI GPT-4o API", table_cell_style),
+            Paragraph("<b>Sub-100ms response speed</b> for real-time WebSocket agent calls (Groq) paired with structured rule citation (`demand_charge_15min_peak`) & free-tier zero cost (Gemini).", table_cell_style),
+            Paragraph("<b>100% JSON contract compliance</b> (`rec_042` schema).", table_cell_style)
+        ]
+    ]
+    mod_table = Table(models_table_data, colWidths=[1.2*inch, 1.8*inch, 1.4*inch, 1.8*inch, 1.0*inch])
+    mod_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), c_primary),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('PADDING', (0, 0), (-1, -1), 4),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, c_bg_box])
+    ]))
+    story.append(mod_table)
+    story.append(Spacer(1, 5))
+
+    story.append(Paragraph("B. Deep Dive: Why LightGBM / XGBoost Ensembles Beat Deep Learning LSTMs for Energy Forecasting", h2_style))
+    p_s16_l1 = ("In academic literature, LSTM (Long Short-Term Memory) networks are often cited for time-series forecasting. However, for <b>commercial energy optimization agents</b>, "
+                "Tree-Based Ensembles (LightGBM & XGBoost) represent the true industry standard for 4 key reasons:<br/>"
+                "1. <b>Inference Latency (< 5ms vs 150ms+):</b> LightGBM executes forward passes in under 5 milliseconds on standard CPU cores. This allows DuckDB to recalculate 24-hour predictions on every 15-minute telemetry tick inside the backend event loop without lagging the UI.<br/>"
+                "2. <b>Tabular Feature Superiority:</b> Benchmark studies across Kaggle energy competitions prove Gradient Boosted Trees consistently outperform RNNs/LSTMs on tabular feature stores containing lagged variables (`y_t-15m`, `y_t-24h`), calendar cyclical features (`sin_hour`, `day_of_week`), and weather vectors.<br/>"
+                "3. <b>Quantile Regression for Peak Risk (P90 Bound):</b> Optimizing peak demand charges requires modeling worst-case upper bound risk (P90 quantile). LightGBM natively supports `objective='quantile'` with `alpha=0.90`, providing an explicit probabilistic upper ceiling for the MILP optimizer.<br/>"
+                "4. <b>Model Explainability (SHAP Values):</b> Tree models support TreeSHAP, allowing the Explainer Agent to output explicit feature contributions (e.g., *'Predicted load rose +45 kW primarily due to Ambient Temperature = 34.5°C (+30 kW) and Monday 06:00 AM Shift Start (+15 kW)'*).")
+    story.append(Paragraph(p_s16_l1, body_style))
+
+    story.append(Paragraph("C. Deep Dive: MILP Mathematical Optimization vs. Reinforcement Learning (RL)", h2_style))
+    p_s16_l3 = ("A common mistake in AI hackathons is attempting to train a Reinforcement Learning (RL) policy (e.g. PPO, SAC) to control building HVAC and compressors. "
+                "Our platform selects <b>Mixed-Integer Linear Programming (MILP)</b> for operational safety and mathematical rigor:<br/>"
+                "• <b>Zero Operational Constraint Violations:</b> RL agents learn via trial-and-error, frequently violating thermal deadbands (e.g. letting room temp rise to 28°C) or exceeding compressor duty cycles during exploration. MILP enforces hard mathematical constraints ($T_{\\text{min}} \\le T_{\\text{room}} \\le T_{\\text{max}}$) with <b>100% safety guarantees</b>.<br/>"
+                "• <b>Mathematical Optimality Proof:</b> MILP solvers (PuLP / SciPy / OR-Tools) solve the exact cost objective function: "
+                "$\\min \\sum_{t=1}^{96} (\\text{kW}_t \\times \\text{TOD}_t) + (\\max(\\text{kW}_{15m}) \\times \\text{DemandRate})$, yielding an exact mathematical proof of global minimum cost.<br/>"
+                "• <b>Zero Training Cold-Start:</b> MILP requires no offline policy training iterations; it evaluates the 96-step decision horizon dynamically in < 100ms.")
+    story.append(Paragraph(p_s16_l3, body_style))
+
+    story.append(Paragraph("D. Deep Dive: Dual-LLM Agent Architecture (Groq Llama 3.3 + Google Gemini)", h2_style))
+    p_s16_l4 = ("Rather than relying on a single expensive monolithic LLM API, our agentic orchestration layer deploys a <b>Hybrid Dual-LLM Topology</b>:<br/>"
+                "1. <b>Groq API (Llama 3.3 70B) — Fast Sub-100ms Agent Calls:</b> Serves high-frequency telemetry checks, tool selection, and JSON parsing at 300+ tokens/sec on free tier (14,400 req/day), ensuring zero UI lag during live WebSocket streaming.<br/>"
+                "2. <b>Google Gemini 1.5 (Flash / Pro via Google AI Studio) — Complex Reasoning & Rule Citation:</b> Synthesizes complex multi-variable scenarios, evaluates operator feedback, generates human-readable reasoning explanations, and explicitly cites DISCOM tariff rules (`cited_rule: 'demand_charge_15min_peak'`).")
+    story.append(Paragraph(p_s16_l4, body_style))
+
+    s16_summary_box = [[
+        Paragraph("<b>Summary Model Deployment Roadmap for Track Leads:</b><br/>"
+                  "• <b>Track 1 (Forecasting Lead):</b> Build LightGBM Regressor in Python (`lightgbm.LGBMRegressor`). Train P10, P50, P90 models on `historical_training_campus_data.csv`. Save binaries to `packages/contracts/models/forecast_lgb.pkl`.<br/>"
+                  "• <b>Track 2 (Optimizer Lead):</b> Formulate MILP model using `pulp` or `scipy.optimize.linprog`. Input P90 load curve, output staggered equipment schedule object matching `rec_042.json`.<br/>"
+                  "• <b>Track 4 (Agent Core Lead):</b> Set up LangGraph orchestrator connecting Groq (Llama 3.3 70B) for fast tool dispatch and Gemini 1.5 Flash for responsible AI rule citation.<br/>"
+                  "• <b>Track 7 (Audit Lead):</b> Validate that every recommendation output logs `confidence: 0.94`, `cited_rule: 'demand_charge_15min_peak'`, and financial savings (Rs. 1,30,000/mo) into Supabase / DuckDB audit tables.", callout_style)
+    ]]
+    s16_box_table = Table(s16_summary_box, colWidths=[letter[0] - 108])
+    s16_box_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F0FDF4")),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#16A34A")),
+        ('PADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(s16_box_table)
+    story.append(Spacer(1, 5))
+
     doc.build(story, canvasmaker=NumberedCanvas)
     print(f"PDF successfully generated: {filename}")
 
 if __name__ == "__main__":
     create_pdf()
+
