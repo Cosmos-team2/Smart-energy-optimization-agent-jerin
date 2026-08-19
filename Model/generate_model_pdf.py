@@ -6,7 +6,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, HRFlowable, Image
 )
 from reportlab.pdfgen import canvas
 
@@ -293,6 +293,33 @@ def create_model_pdf(filename="ML_Model_Training_Evaluation_and_Architecture_Rep
           "ensuring sub-second WebSocket telemetry streaming for demo day!")
     story.append(Paragraph(p5, body_style))
     story.append(Spacer(1, 5))
+
+    # 6. Embedded Model Output Visualizations & Evaluation Charts
+    story.append(Paragraph("6. Model Output Evaluation Charts & Visualizations", h1_style))
+    p6 = ("Below are the 6 high-resolution (300 DPI) evaluation plots generated directly from model execution and saved inside <code>D:\\Cognizant-hackathon\\Model\\model output\\</code>:")
+    story.append(Paragraph(p6, body_style))
+
+    output_folder = os.path.join(os.path.dirname(__file__), "model output")
+
+    # Add Visualization Images
+    img_width = letter[0] - 108  # 504 points width (7 inches)
+    img_height = 2.4 * inch      # 172.8 points height
+
+    chart_files = [
+        ("forecast_actual_vs_predicted.png", "Figure 1: 24-Hour Energy Demand Forecast Curve (Actual vs. P10/P50/P90 Quantile Bands)"),
+        ("milp_peak_shaving_optimization.png", "Figure 2: MILP Peak Shaving Optimization Curve (Baseline 777.71 kW vs. Optimized 397.71 kW Load)"),
+        ("confusion_matrix.png", "Figure 3: Isolation Forest Anomaly Detection Confusion Matrix Heatmap"),
+        ("forecast_residuals_distribution.png", "Figure 4: P50 Forecasting Residual Error Histogram & Normal Distribution Fit (RMSE = 3.03%)"),
+        ("feature_importance.png", "Figure 5: LightGBM Feature Importance Weight Ranking (X Matrix Leakage Isolated)"),
+        ("anomaly_roc_pr_curve.png", "Figure 6: Anomaly Detection Receiver Operating Characteristic (ROC) & Precision-Recall Curves")
+    ]
+
+    for fname, caption in chart_files:
+        img_path = os.path.join(output_folder, fname)
+        if os.path.exists(img_path):
+            story.append(Paragraph(f"<b>{caption}</b>", h2_style))
+            story.append(Image(img_path, width=img_width, height=img_height))
+            story.append(Spacer(1, 6))
 
     doc.build(story, canvasmaker=NumberedCanvas)
     print(f"Model PDF Report successfully generated: {filename}")
