@@ -8,35 +8,61 @@
 // keeps working without modification.
 export { CONTRACT_LIMIT_KW } from "../../../../packages/shared/twin-data/contractLimit.js";
 
-export const POWER_NODE_POSITION = [0, 0, -6];
+// Facility floor plan (all presentation-only, world-space coordinates):
+//
+//              GRID
+//               |
+//        ELECTRICAL ROOM
+//               |
+//   ,---------- MAIN FACILITY ----------,
+//   |            BASELOAD HALL          |
+//   |-------------------|----------------|
+//   |   HVAC PLANT ROOM | COMPRESSOR ROOM|
+//   '-------------------'----------------'
+//
+// Kept as one coherent campus (not three floating objects) — every room
+// boundary below is consumed by scene/Architecture.jsx to build matching
+// transparent walls/floor plan, and by scene/Floor.jsx for the connecting
+// service corridor.
+export const POWER_NODE_POSITION = [0, 0, -10.5];
+export const ELECTRICAL_ROOM_POSITION = [0, 0, -7];
+export const ELECTRICAL_ROOM_SIZE = [4.6, 3.0]; // [width, depth]
 
-// All three zones sit on the same depth (z) so no zone's billboarded labels
-// ever land behind/in front of another's from the default camera angle —
-// they separate purely left-to-right.
+// Main facility envelope + internal room split (shared by Architecture.jsx).
+export const FACILITY_BOUNDS = { minX: -6.4, maxX: 6.4, minZ: -3.0, maxZ: 6.6 };
+export const BACK_HALL_SPLIT_Z = 1.3; // baseload hall <-> front rooms
+export const FRONT_ROOM_SPLIT_X = 0; // HVAC room <-> compressor room
+
+export const MAIN_FACILITY_POSITION = [0, 0, 1.5];
+
+// Accent colors are a presentation choice (see note above) — purple/cyan
+// only, representing STATE/ENERGY rather than equipment identity. Equipment
+// housings themselves are graphite/metal regardless of zone; these accents
+// drive pad rings, energy-flow default color, and LED/gauge glow.
 export const ZONES = [
   {
     id: "z_baseload_1",
     label: "Baseload Systems",
     dataKey: "base_kw",
     kind: "baseload",
-    position: [-6.2, 0, 3],
-    color: "#5b8def",
+    position: [0, 0, -1.1],
+    color: "#8B5CF6",
   },
   {
     id: "z_hvac_3",
     label: "HVAC Zone 3",
     dataKey: "hvac_kw",
     kind: "hvac",
-    position: [0, 0, 3],
-    color: "#2fbf71",
+    position: [-3.2, 0, 4.2],
+    color: "#67E8F9",
   },
   {
     id: "z_compressor_1",
     label: "Compressor 1",
     dataKey: "comp_kw",
     kind: "compressor",
-    position: [6.2, 0, 3],
-    color: "#e08e2b",
+    position: [3.2, 0, 4.2],
+    color: "#67E8F9",
   },
 ];
 

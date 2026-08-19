@@ -1,3 +1,5 @@
+import { COLORS } from "../palette.js";
+
 // Scrubs through spike-data.json's real timeline entries (2017-01-02, 05:00-06:45).
 export default function TimeSlider({ timeline, index, onChange }) {
   const current = timeline[index];
@@ -13,18 +15,18 @@ export default function TimeSlider({ timeline, index, onChange }) {
         transform: "translateX(-50%)",
         width: "min(560px, 82vw)",
         padding: "12px 20px",
-        background: "rgba(10,14,20,0.75)",
-        border: "1px solid rgba(255,255,255,0.1)",
+        background: "rgba(16,12,26,0.78)",
+        border: `1px solid ${COLORS.purpleTrace}`,
         borderRadius: 10,
-        color: "#e6edf3",
+        color: COLORS.white,
         fontFamily: "'Segoe UI', system-ui, sans-serif",
-        backdropFilter: "blur(6px)",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+        backdropFilter: "blur(8px)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, opacity: 0.75, marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, opacity: 0.7, marginBottom: 6 }}>
         <span>{date}</span>
-        <span style={{ fontWeight: 600 }}>{time}</span>
+        <span style={{ fontWeight: 600, color: COLORS.purpleGlow }}>{time}</span>
       </div>
       <input
         type="range"
@@ -33,7 +35,7 @@ export default function TimeSlider({ timeline, index, onChange }) {
         step={1}
         value={index}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: "100%" }}
+        style={{ width: "100%", accentColor: COLORS.purple }}
       />
     </div>
   );

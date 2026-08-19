@@ -1,18 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import * as THREE from "three";
 
 import Floor from "./scene/Floor.jsx";
 import PowerNode from "./scene/PowerNode.jsx";
+import Architecture from "./scene/Architecture.jsx";
 import EquipmentZone from "./scene/EquipmentZone.jsx";
 import EnergyFlow from "./scene/EnergyFlow.jsx";
-import { CONTRACT_LIMIT_KW, POWER_NODE_POSITION, REC_042_TARGET_ZONES, ZONES } from "./scene/config.js";
+import {
+  CONTRACT_LIMIT_KW,
+  ELECTRICAL_ROOM_POSITION,
+  POWER_NODE_POSITION,
+  REC_042_TARGET_ZONES,
+  ZONES,
+} from "./scene/config.js";
+import { COLORS } from "./palette.js";
 
 import Hud from "./hud/Hud.jsx";
 import TimeSlider from "./hud/TimeSlider.jsx";
 import ModePanel from "./hud/ModePanel.jsx";
-import ComparisonPanel from "./hud/ComparisonPanel.jsx";
-import RecommendationPanel from "./hud/RecommendationPanel.jsx";
+import FacilityViewControl from "./hud/FacilityViewControl.jsx";
+import Inspector from "./hud/Inspector.jsx";
+import RecommendationBadge from "./hud/RecommendationBadge.jsx";
+import RecommendationDrawer from "./hud/RecommendationDrawer.jsx";
 
 import {
   BASELINE_PEAK_KW,
@@ -90,6 +101,30 @@ function staticCompBadge(mode, index) {
   return null;
 }
 
+// Smoothly pans/dollies the OrbitControls target toward a selected zone
+// without ever teleporting — nudges target + camera distance a little each
+// frame, preserving the user's current azimuth/polar angle.
+function CameraFocus({ controlsRef, focusPosition }) {
+  const targetVec = useRef(new THREE.Vector3());
+
+  useFrame(() => {
+    const controls = controlsRef.current;
+    if (!controls || !focusPosition) return;
+    targetVec.current.set(focusPosition[0], 1.4, focusPosition[2]);
+    controls.target.lerp(targetVec.current, 0.06);
+
+    const offset = controls.object.position.clone().sub(controls.target);
+    const len = offset.length();
+    const desired = 9;
+    if (Math.abs(len - desired) > 0.05) {
+      offset.setLength(THREE.MathUtils.lerp(len, desired, 0.05));
+      controls.object.position.copy(controls.target).add(offset);
+    }
+  });
+
+  return null;
+}
+
 export default function DigitalTwin() {
   const [mode, setMode] = useState("baseline");
   const [index, setIndex] = useState(0);
@@ -98,7 +133,11 @@ export default function DigitalTwin() {
   // Local UI state only — PENDING | APPROVED | REJECTED. No API call is
   // made; there's no real approval endpoint yet, so nothing is persisted.
   const [approvalStatus, setApprovalStatus] = useState("PENDING");
+  const [selectedZoneId, setSelectedZoneId] = useState(null);
+  const [viewMode, setViewMode] = useState("cutaway");
+  const [recOpen, setRecOpen] = useState(false);
   const timeoutRef = useRef(null);
+  const controlsRef = useRef();
 
   // Per-channel max across the real BASELINE timeline — used only to scale
   // equipment block height/particle rate consistently across both modes.
@@ -164,6 +203,7 @@ export default function DigitalTwin() {
     setApprovalStatus("APPROVED");
     setMode("optimized");
     setIndex(SPIKE_INDEX);
+    setRecOpen(false);
   };
 
   const handleReject = () => {
@@ -172,6 +212,7 @@ export default function DigitalTwin() {
     setApprovalStatus("REJECTED");
     setMode("baseline");
     setIndex(SPIKE_INDEX);
+    setRecOpen(false);
   };
 
   const activeStep = simulating && simStepIdx >= 0 && simStepIdx < SIMULATION_STEPS.length ? SIMULATION_STEPS[simStepIdx] : null;
@@ -190,21 +231,46 @@ export default function DigitalTwin() {
 
   const showGhosts = mode === "optimized" && index === SPIKE_INDEX;
 
+  const zoneMetrics = (zone) => {
+    const value = current[zone.dataKey];
+    const ratio = value / maxByKey[zone.dataKey];
+    const spike = current.is_spike_event === 1 && REC_042_TARGET_ZONES.includes(zone.id);
+    return { value, ratio, spike };
+  };
+
+  const selectedZone = ZONES.find((z) => z.id === selectedZoneId) || null;
+  const selectedMetrics = selectedZone ? zoneMetrics(selectedZone) : null;
+  const focusPosition = selectedZone ? selectedZone.position : null;
+
   return (
-    <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", background: "#0a0e14", overflow: "hidden" }}>
-      <Canvas style={{ width: "100%", height: "100%" }} camera={{ position: [3.5, 10, 15], fov: 40 }}>
-        <color attach="background" args={["#0a0e14"]} />
-        <fog attach="fog" args={["#0a0e14", 18, 36]} />
-        <ambientLight intensity={0.55} />
-        <pointLight position={[10, 10, 10]} intensity={1} />
+    <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", background: COLORS.bg, overflow: "hidden" }}>
+      <Canvas
+        style={{ width: "100%", height: "100%" }}
+        camera={{ position: [12, 9.2, 25], fov: 40 }}
+        onPointerMissed={() => setSelectedZoneId(null)}
+      >
+        <color attach="background" args={[COLORS.bg]} />
+        <fog attach="fog" args={[COLORS.fog, 24, 48]} />
+
+        {/* ambient fill so geometry never reads as a black silhouette */}
+        <ambientLight intensity={0.9} />
+        {/* large soft key light, warm-neutral */}
+        <directionalLight position={[9, 16, 8]} intensity={1.6} color="#efeaff" />
+        {/* purple rim light from behind/above the facility */}
+        <directionalLight position={[-10, 9, -12]} intensity={0.85} color={COLORS.purple} />
+        {/* cyan fill from the front-low, picks up equipment detail */}
+        <pointLight position={[0, 4, 11]} intensity={0.85} color={COLORS.energyCyan} distance={28} />
+        <hemisphereLight args={[COLORS.purpleGlow, "#1c1830", 0.6]} />
 
         <Floor />
         <PowerNode position={POWER_NODE_POSITION} loadRatio={loadRatio} />
+        <Architecture viewMode={viewMode} />
+
+        {/* trunk feed: grid -> electrical room */}
+        <EnergyFlow start={POWER_NODE_POSITION} end={ELECTRICAL_ROOM_POSITION} ratio={loadRatio} spike={current.is_spike_event === 1} />
 
         {ZONES.map((zone) => {
-          const value = current[zone.dataKey];
-          const ratio = value / maxByKey[zone.dataKey];
-          const spike = current.is_spike_event === 1 && REC_042_TARGET_ZONES.includes(zone.id);
+          const { value, ratio, spike } = zoneMetrics(zone);
 
           const baselineValue = BASELINE_TIMELINE[index][zone.dataKey];
           const ghostActive = showGhosts && REC_042_TARGET_ZONES.includes(zone.id) && baselineValue !== value;
@@ -225,37 +291,67 @@ export default function DigitalTwin() {
                 ghostValue={ghostValue}
                 statusBadge={statusBadge}
                 tintColor={tintColor}
+                selected={selectedZoneId === zone.id}
+                dimmed={selectedZoneId != null && selectedZoneId !== zone.id}
+                onSelect={setSelectedZoneId}
               />
-              <EnergyFlow start={POWER_NODE_POSITION} end={zone.position} ratio={ratio} color={zone.color} spike={spike} />
+              <EnergyFlow start={ELECTRICAL_ROOM_POSITION} end={zone.position} ratio={ratio} spike={spike} />
             </group>
           );
         })}
 
         <OrbitControls
-          target={[0, 1.2, 1.5]}
-          maxDistance={30}
-          minDistance={5}
-          minPolarAngle={0.25}
-          maxPolarAngle={Math.PI / 2 - 0.03}
+          ref={controlsRef}
+          target={[0, 1.4, 0.8]}
+          maxDistance={42}
+          minDistance={7}
+          minPolarAngle={0.3}
+          maxPolarAngle={1.48}
+          minAzimuthAngle={-Math.PI / 1.8}
+          maxAzimuthAngle={Math.PI / 1.8}
+          enableDamping
+          dampingFactor={0.08}
         />
+        <CameraFocus controlsRef={controlsRef} focusPosition={focusPosition} />
       </Canvas>
+
+      {/* facility identity — subtle top-center brand/status element */}
+      <div
+        style={{
+          position: "absolute",
+          top: 16,
+          left: "50%",
+          transform: "translateX(-50%)",
+          textAlign: "center",
+          fontFamily: "'Segoe UI', system-ui, sans-serif",
+          pointerEvents: "none",
+        }}
+      >
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, color: COLORS.white }}>
+          OPTIGRID <span style={{ color: COLORS.purpleGlow }}>/</span> DIGITAL TWIN
+        </div>
+        <div style={{ fontSize: 9.5, letterSpacing: 1, color: COLORS.textDim, marginTop: 2, textTransform: "uppercase" }}>
+          Facility 01 · Industrial Energy Campus ·{" "}
+          <span style={{ color: COLORS.energyCyan }}>● LIVE</span>
+        </div>
+      </div>
 
       {approvalStatus !== "PENDING" && (
         <div
           style={{
             position: "absolute",
-            top: 16,
+            top: 52,
             left: "50%",
             transform: "translateX(-50%)",
-            padding: "8px 18px",
+            padding: "6px 16px",
             borderRadius: 999,
-            background: approvalStatus === "APPROVED" ? "rgba(61,220,132,0.15)" : "rgba(139,152,165,0.15)",
-            border: `1px solid ${approvalStatus === "APPROVED" ? "#3ddc84" : "#8b98a5"}`,
-            color: approvalStatus === "APPROVED" ? "#3ddc84" : "#c8d0d8",
+            background: approvalStatus === "APPROVED" ? "rgba(103,232,249,0.12)" : "rgba(139,152,165,0.12)",
+            border: `1px solid ${approvalStatus === "APPROVED" ? COLORS.energyCyan : "#8b98a5"}`,
+            color: approvalStatus === "APPROVED" ? COLORS.energyCyan : "#c8d0d8",
             fontFamily: "'Segoe UI', system-ui, sans-serif",
-            fontSize: 13,
+            fontSize: 11.5,
             fontWeight: 700,
-            letterSpacing: 0.5,
+            letterSpacing: 0.4,
             pointerEvents: "none",
           }}
         >
@@ -273,14 +369,31 @@ export default function DigitalTwin() {
         simulating={simulating}
         simLabel={simLabel}
       />
-      <ComparisonPanel baselinePeak={BASELINE_PEAK_KW} optimizedPeak={OPTIMIZED_PEAK_KW} contractLimit={CONTRACT_LIMIT_KW} />
-      <RecommendationPanel
-        recommendation={RECOMMENDATION}
-        approvalStatus={approvalStatus}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        disabled={simulating}
+      <FacilityViewControl viewMode={viewMode} onChange={setViewMode} />
+      <Inspector
+        zone={selectedZone}
+        value={selectedMetrics?.value ?? 0}
+        ratio={selectedMetrics?.ratio ?? 0}
+        spike={selectedMetrics?.spike ?? false}
+        totalLoad={current.total_kw}
+        onClose={() => setSelectedZoneId(null)}
       />
+
+      <RecommendationBadge recommendation={RECOMMENDATION} approvalStatus={approvalStatus} onOpen={() => setRecOpen(true)} />
+      {recOpen && (
+        <RecommendationDrawer
+          recommendation={RECOMMENDATION}
+          approvalStatus={approvalStatus}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onClose={() => setRecOpen(false)}
+          disabled={simulating}
+          baselinePeak={BASELINE_PEAK_KW}
+          optimizedPeak={OPTIMIZED_PEAK_KW}
+          contractLimit={CONTRACT_LIMIT_KW}
+        />
+      )}
+
       <TimeSlider timeline={BASELINE_TIMELINE} index={index} onChange={handleIndexChange} />
     </div>
   );
