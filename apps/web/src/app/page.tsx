@@ -32,7 +32,7 @@ import { PRESETS, LocationPreset } from "@/data/facilityPresets";
 import { AICopilotDrawer } from "@/components/AICopilotDrawer";
 import { MCPAgentTracePanel } from "@/components/MCPAgentTracePanel";
 
-import { MCPStateProvider } from "@/hooks/useMCPState";
+import { MCPStateProvider, useMCPState } from "@/hooks/useMCPState";
 
 // Dynamically load 3D Hero Scene (Client-Side Only)
 const Hero3DSection = dynamic(
@@ -176,15 +176,37 @@ function HomeContent() {
   // Live WebSocket telemetry stream
   const stream = useTelemetryStream();
 
+  // Shared MCP pipeline output — drives all live values after a pipeline run
+  const { mcpState } = useMCPState();
+  const hasMCP = mcpState.hasRunMCP;
+
+  // Effective values: MCP-computed when available, seed-data defaults otherwise
+  const effectiveContractLimitKw = hasMCP ? mcpState.contractLimitKw : 500;
+  const effectiveOptimizedPeakKw = hasMCP ? mcpState.optimizedPeakKw : 420.0;
+  const effectiveSavingsInr = hasMCP ? mcpState.monthlySavingsInr : recommendation.estimated_savings_inr;
+  const effectiveCompressorDelay = hasMCP ? mcpState.compressorDelayMin : 20;
+  const effectiveChillerRamp = hasMCP ? mcpState.chillerRampPct : 50;
+  const BASELINE_KW = 777.71;
+  const effectiveShavedKw = Math.max(0, BASELINE_KW - effectiveOptimizedPeakKw);
+  const effectiveSpikeRiskPct = hasMCP
+    ? Number(((effectiveShavedKw / BASELINE_KW) * 100).toFixed(1))
+    : stream.spikeRiskPct;
+  const effectiveRoiX = hasMCP
+    ? Number((effectiveSavingsInr * 12 / 270000).toFixed(1))
+    : 4.8;
+  const effectiveAnnualSavingsL = hasMCP
+    ? `₹${(effectiveSavingsInr * 12 / 100000).toFixed(1)}L`
+    : "₹15.6L";
+
   const telemetry = {
     currentTotalKw: stream.latestReading?.total_kw ?? stream.currentPeakKw,
     baselineKw: stream.latestReading?.base_kw ?? 0,
     hvacKw: stream.latestReading?.hvac_kw ?? 0,
     compKw: stream.latestReading?.comp_kw ?? 0,
-    liveSavingsInr: recommendation.estimated_savings_inr,
-    contractLimitKw: 500,
+    liveSavingsInr: effectiveSavingsInr,
+    contractLimitKw: effectiveContractLimitKw,
     isSpike: (stream.latestReading?.is_spike_event ?? 0) === 1,
-    spikeRiskPct: stream.spikeRiskPct,
+    spikeRiskPct: effectiveSpikeRiskPct,
     trendData: stream.trendData,
     alerts: stream.alerts,
     isConnected: stream.isConnected,
@@ -228,7 +250,7 @@ function HomeContent() {
     );
   };
 
-  const formattedSavings = `₹${Number(telemetry.liveSavingsInr).toLocaleString("en-IN")}`;
+  const formattedSavings = `₹${Number(effectiveSavingsInr).toLocaleString("en-IN")}`;
 
   return (
     <div className="relative min-h-screen" style={{ background: "#0A0A14", color: "#F0F0FF" }}>
@@ -343,10 +365,13 @@ function HomeContent() {
         {/* Top Banner: Spike Warning & Quick Jump to Approval */}
         <div className="relative overflow-hidden rounded-2xl glass-panel-glow p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-card)]/90">
           <div className="flex items-start sm:items-center gap-3.5">
-              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-2xl leading-relaxed">
-                Chiller #2 and Compressor #1 restart exceeds 500 kW contract limit. Stagger plan reduces peak to 420.0 kW.
-              </p>
-            </div>
+            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-2xl leading-relaxed">
+              {hasMCP
+                ? `MCP result: Chiller #2 and Compressor #1 restart exceeds ${effectiveContractLimitKw} kW contract limit. Stagger plan (${effectiveCompressorDelay}min delay + ${effectiveChillerRamp}% ramp) reduces peak to ${effectiveOptimizedPeakKw.toFixed(1)} kW, saving ₹${effectiveSavingsInr.toLocaleString("en-IN")}/month.`
+                : `Chiller #2 and Compressor #1 restart exceeds 500 kW contract limit. Run MCP pipeline above to compute live stagger plan.`
+              }
+            </p>
+          </div>
           <button
             onClick={scrollToApproval}
             className="btn-ghost flex items-center justify-center gap-1.5 text-xs py-2 px-3.5 self-start sm:self-auto font-medium"
@@ -361,35 +386,41 @@ function HomeContent() {
           <KPICard
             title="SAVINGS THIS MONTH"
             value={formattedSavings}
-            subValue="Avoided DISCOM 15-min demand charge penalty"
-            badgeText="VERIFIED TARIFF"
+            subValue={hasMCP
+              ? `MCP: ${effectiveContractLimitKw} kW limit · ${effectiveShavedKw.toFixed(0)} kW shaved · BESCOM demand_charge_15min_peak`
+              : "Avoided DISCOM 15-min demand charge penalty"
+            }
+            badgeText={hasMCP ? "MCP LIVE" : "SEED DATA"}
             badgeType="emerald"
             icon={IndianRupee}
             glow={true}
             trend={{
-              value: "+18.4%",
+              value: hasMCP ? `₹${(effectiveSavingsInr * 12 / 100000).toFixed(1)}L/yr` : "+18.4%",
               isPositive: true,
-              label: "vs previous billing cycle",
+              label: hasMCP ? "annualized (MCP computed)" : "vs previous billing cycle",
             }}
           />
           <KPICard
-            title="SPIKE RISK"
-            value={`${telemetry.spikeRiskPct}%`}
-            subValue="Unmanaged: 777.71 kW (exceeds 500 kW limit)"
-            badgeText="CRITICAL WINDOW"
+            title="SPIKE RISK REDUCTION"
+            value={`${effectiveSpikeRiskPct}%`}
+            subValue={hasMCP
+              ? `Unmanaged: ${BASELINE_KW} kW → optimized: ${effectiveOptimizedPeakKw.toFixed(0)} kW (under ${effectiveContractLimitKw} kW limit)`
+              : `Unmanaged: ${BASELINE_KW} kW (exceeds 500 kW limit)`
+            }
+            badgeText={hasMCP ? "MCP LIVE" : "SEED DATA"}
             badgeType="rose"
             icon={AlertOctagon}
             trend={{
-              value: "-62.5%",
+              value: `-${effectiveSpikeRiskPct}%`,
               isPositive: true,
-              label: "risk reduction with stagger plan",
+              label: hasMCP ? `${effectiveCompressorDelay}min stagger + ${effectiveChillerRamp}% ramp` : "risk reduction with stagger plan",
             }}
           />
           <KPICard
             title="PROJECTED ROI"
-            value="4.8x"
-            subValue="₹15.6L annualized demand charge savings"
-            badgeText="1.8 MO PAYBACK"
+            value={`${effectiveRoiX}x`}
+            subValue={`${effectiveAnnualSavingsL} annualized demand charge savings`}
+            badgeText={hasMCP ? "MCP COMPUTED" : "ESTIMATE"}
             badgeType="cyan"
             icon={TrendingUp}
             trend={{
