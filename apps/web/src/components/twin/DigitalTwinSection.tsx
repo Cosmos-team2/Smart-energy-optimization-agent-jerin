@@ -6,6 +6,16 @@ import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { ArrowDown, Sparkles, Radio } from "lucide-react";
 
+import { useMCPState, ScenarioKey } from "@/hooks/useMCPState";
+import {
+  SCENARIO_SIMULTANEOUS_SPIKE,
+  buildDemandBreachSteps,
+  SCENARIO_COMPRESSOR_FAULT,
+  buildHVACThermalSteps,
+  buildStaggerSteps,
+  SCENARIO_META,
+} from "./data/faultScenarios.js";
+
 import Floor from "./scene/Floor.jsx";
 import PowerNode from "./scene/PowerNode.jsx";
 import Architecture from "./scene/Architecture.jsx";
@@ -125,16 +135,6 @@ function CameraFocus({
 
   return null;
 }
-
-import { useMCPState, ScenarioKey } from "@/hooks/useMCPState";
-import {
-  SCENARIO_SIMULTANEOUS_SPIKE,
-  buildDemandBreachSteps,
-  SCENARIO_COMPRESSOR_FAULT,
-  buildHVACThermalSteps,
-  buildStaggerSteps,
-  SCENARIO_META,
-} from "./data/faultScenarios.js";
 
 function getStepsForScenario(scenario: ScenarioKey, mcpState: any) {
   switch (scenario) {
