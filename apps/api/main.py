@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any, Literal
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 # Add repository root to python path to resolve packages.contracts.models across child processes
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
