@@ -1,9 +1,12 @@
+import asyncio
 import json
 import os
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Literal
 
+import httpx
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,10 +42,40 @@ from apps.api.analytics import query_readings, query_peak_reading
 # In-memory store for recommendation status overrides (keyed by rec id)
 _rec_status_store: Dict[str, str] = {}
 
+
+async def _keep_alive_task():
+    """Pings our own /health endpoint every 10 minutes to prevent Render free-tier spin-down."""
+    # Wait 60s after startup before first ping
+    await asyncio.sleep(60)
+    while True:
+        try:
+            port = int(os.environ.get("PORT", 10000))
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"http://0.0.0.0:{port}/health", timeout=10.0)
+                print(f"[KeepAlive] Self-ping responded: {resp.status_code}")
+        except Exception as e:
+            print(f"[KeepAlive] Self-ping failed (non-critical): {e}")
+        await asyncio.sleep(600)  # 10 minutes
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start keep-alive background task on startup."""
+    task = asyncio.create_task(_keep_alive_task())
+    print("[Startup] Keep-alive background task started (pings /health every 10 min)")
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
 app = FastAPI(
-    title="Smart Energy Optimization Agent - Mock API Spine",
-    description="Lightweight mock backend serving canonical 5 contracts and real seed fixture data for hackathon track integration.",
-    version="0.1.0",
+    title="Smart Energy Optimization Agent API",
+    description="Backend serving energy optimization contracts, real seed data, MCP tools, and Groq AI copilot.",
+    version="0.2.0",
+    lifespan=lifespan,
 )
 
 # Enable CORS for Next.js frontend, 3D Digital Twin, and local dev clients

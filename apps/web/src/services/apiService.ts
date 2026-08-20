@@ -138,17 +138,32 @@ export const SEED_DEMAND_CURVE: SeedDataRecord[] = [
  */
 export const apiService = {
   /**
-   * 1. Wake up backend (important for Render free tier cold starts)
+   * 1. Wake up backend with retries (handles Render free tier cold starts ~30s)
    */
-  async wakeUpBackend(): Promise<boolean> {
+  async wakeUpBackend(maxRetries = 5, delayMs = 6000): Promise<boolean> {
     if (!API_BASE_URL) return false;
-    try {
-      const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
-      return res.ok;
-    } catch {
-      return false;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/health`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          if (i > 0) console.info(`[apiService] Backend woke up after ${i + 1} retries`);
+          return true;
+        }
+      } catch {
+        // 502 / network error — backend still cold-starting
+      }
+      if (i < maxRetries - 1) {
+        console.info(`[apiService] Backend warming up... retry ${i + 1}/${maxRetries}`);
+        await new Promise((r) => setTimeout(r, delayMs));
+      }
     }
+    console.warn("[apiService] Backend did not respond after retries — using local fixtures");
+    return false;
   },
+
 
   /**
    * 2. Onboard Facility / Geocode via real MCP backend endpoint
