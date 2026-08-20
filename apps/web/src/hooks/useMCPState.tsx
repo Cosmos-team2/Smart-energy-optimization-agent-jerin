@@ -47,7 +47,7 @@ const MCPStateContext = createContext<MCPStateContextValue>({
   updateMCPState: () => {},
 });
 
-export function MCPStateProvider({ children }: { children: React.ReactNode }) {
+export function MCPStateProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [mcpState, setMcpState] = useState<MCPState>(DEFAULT_STATE);
 
   const updateMCPState = useCallback((patch: Partial<MCPState>) => {
