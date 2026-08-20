@@ -89,7 +89,7 @@ const DigitalTwinSection = dynamic(
   }
 );
 
-export default function SinglePageApp() {
+function HomeContent() {
   const [navVisible, setNavVisible] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("hero");
   const [selectedFacility, setSelectedFacility] = useState<LocationPreset>(PRESETS[0]);
