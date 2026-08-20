@@ -271,6 +271,8 @@ export function DigitalTwinSection({
     ? (selectedZone.position as [number, number, number])
     : null;
 
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+
   const handleScrollDown = () => {
     if (onScrollToDashboard) {
       onScrollToDashboard();
@@ -279,8 +281,28 @@ export function DigitalTwinSection({
     }
   };
 
+  // When the camera is fully zoomed out and the user keeps scrolling down,
+  // release OrbitControls so its wheel handler does NOT preventDefault and
+  // the native page scroll reaches the next section (dashboard) below.
+  // Capture phase runs BEFORE OrbitControls' own listener on the canvas.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onWheelCapture = (e: WheelEvent) => {
+      const controls = controlsRef.current;
+      if (!controls) return;
+      const distance = controls.object.position.distanceTo(controls.target);
+      const atMaxZoom = distance >= 58; // near maxDistance (60)
+      const scrollingDown = e.deltaY > 0;
+      controls.enabled = !(atMaxZoom && scrollingDown);
+    };
+    el.addEventListener("wheel", onWheelCapture, { capture: true, passive: true });
+    return () => el.removeEventListener("wheel", onWheelCapture, { capture: true });
+  }, []);
+
   return (
     <div
+      ref={wrapperRef}
       id="twin"
       className="relative w-full h-screen overflow-hidden"
       style={{ background: COLORS.bg }}
@@ -369,15 +391,15 @@ export function DigitalTwinSection({
         <OrbitControls
           ref={controlsRef}
           target={[0, 1.4, 0.8]}
-          maxDistance={42}
-          minDistance={7}
-          minPolarAngle={0.3}
-          maxPolarAngle={1.48}
-          minAzimuthAngle={-Math.PI / 1.8}
-          maxAzimuthAngle={Math.PI / 1.8}
+          maxDistance={60}
+          minDistance={1.5}
+          minPolarAngle={0.15}
+          maxPolarAngle={1.55}
+          minAzimuthAngle={-Math.PI}
+          maxAzimuthAngle={Math.PI}
           enableDamping
           dampingFactor={0.08}
-          enableZoom={false}
+          enableZoom
         />
         <CameraFocus controlsRef={controlsRef} focusPosition={focusPosition} />
       </Canvas>

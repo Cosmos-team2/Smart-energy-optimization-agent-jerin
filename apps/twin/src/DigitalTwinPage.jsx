@@ -332,14 +332,15 @@ export default function DigitalTwin() {
         <OrbitControls
           ref={controlsRef}
           target={[0, 1.4, 0.8]}
-          maxDistance={42}
-          minDistance={7}
-          minPolarAngle={0.3}
-          maxPolarAngle={1.48}
-          minAzimuthAngle={-Math.PI / 1.8}
-          maxAzimuthAngle={Math.PI / 1.8}
+          maxDistance={60}
+          minDistance={1.5}
+          minPolarAngle={0.15}
+          maxPolarAngle={1.55}
+          minAzimuthAngle={-Math.PI}
+          maxAzimuthAngle={Math.PI}
           enableDamping
           dampingFactor={0.08}
+          enableZoom
         />
         <CameraFocus controlsRef={controlsRef} focusPosition={focusPosition} />
       </Canvas>
