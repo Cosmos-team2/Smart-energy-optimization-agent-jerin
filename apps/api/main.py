@@ -35,6 +35,9 @@ from apps.api.mcp.weather import get_weather
 from apps.api.mcp.solar import get_solar
 from apps.api.analytics import query_readings, query_peak_reading
 
+# In-memory store for recommendation status overrides (keyed by rec id)
+_rec_status_store: Dict[str, str] = {}
+
 app = FastAPI(
     title="Smart Energy Optimization Agent - Mock API Spine",
     description="Lightweight mock backend serving canonical 5 contracts and real seed fixture data for hackathon track integration.",
@@ -180,8 +183,56 @@ def list_recommendations():
     if REC_042_FILE.exists():
         with open(REC_042_FILE, "r", encoding="utf-8") as f:
             rec_data = json.load(f)
-        return [RecommendationObject(**rec_data)]
+        rec = RecommendationObject(**rec_data)
+        # Apply any in-memory status override
+        if rec.id in _rec_status_store:
+            rec = rec.model_copy(update={"status": _rec_status_store[rec.id]})
+        return [rec]
     return []
+
+
+@app.post("/api/recommendations/{rec_id}/approve", response_model=RecommendationObject)
+def approve_recommendation(rec_id: str):
+    """
+    Human approval gate: marks a recommendation as approved.
+    Updates in-memory status store and returns the updated RecommendationObject (Contract 3).
+    """
+    if not REC_042_FILE.exists():
+        raise HTTPException(status_code=404, detail="rec_042.json not found")
+    try:
+        with open(REC_042_FILE, "r", encoding="utf-8") as f:
+            rec_data = json.load(f)
+        rec = RecommendationObject(**rec_data)
+        if rec.id != rec_id:
+            raise HTTPException(status_code=404, detail=f"Recommendation '{rec_id}' not found")
+        _rec_status_store[rec_id] = "approved"
+        return rec.model_copy(update={"status": "approved"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Approval failed: {str(e)}")
+
+
+@app.post("/api/recommendations/{rec_id}/reject", response_model=RecommendationObject)
+def reject_recommendation(rec_id: str):
+    """
+    Human approval gate: marks a recommendation as rejected.
+    Updates in-memory status store and returns the updated RecommendationObject (Contract 3).
+    """
+    if not REC_042_FILE.exists():
+        raise HTTPException(status_code=404, detail="rec_042.json not found")
+    try:
+        with open(REC_042_FILE, "r", encoding="utf-8") as f:
+            rec_data = json.load(f)
+        rec = RecommendationObject(**rec_data)
+        if rec.id != rec_id:
+            raise HTTPException(status_code=404, detail=f"Recommendation '{rec_id}' not found")
+        _rec_status_store[rec_id] = "rejected"
+        return rec.model_copy(update={"status": "rejected"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Rejection failed: {str(e)}")
 
 
 @app.post("/api/mcp/envelope", response_model=MCPEnvelope)
@@ -328,6 +379,54 @@ def analytics_peak(
         raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Peak demand query failed: {str(e)}")
+
+
+# ==========================================
+# Agent Copilot Endpoint (/api/copilot)
+# ==========================================
+
+class CopilotRequest(BaseModel):
+    question: str = Field(..., description="User's natural language question (why/what-if)")
+    state: Optional[Dict[str, Any]] = Field(None, description="Optional agent state snapshot; if omitted the current recommendation is fetched from rec_042")
+
+
+@app.post("/api/copilot")
+def copilot_endpoint(body: CopilotRequest):
+    """
+    AI Copilot: routes user questions to the energy agent graph.
+    Supports 'why' questions (grounded explanation) and 'what-if' scenarios
+    (re-runs MILP optimizer with parameter override).
+    Requires GROQ_API_KEY or GEMINI_API_KEY environment variable.
+    """
+    try:
+        from apps.agents.copilot import copilot_answer
+        from apps.agents.graph import EnergyState
+
+        # Build state: use caller-provided state or fall back to rec_042 fixture
+        if body.state:
+            state: EnergyState = body.state  # type: ignore[assignment]
+        else:
+            if not REC_042_FILE.exists():
+                raise HTTPException(status_code=404, detail="rec_042.json not found; no recommendation state available")
+            with open(REC_042_FILE, "r", encoding="utf-8") as f:
+                rec_data = json.load(f)
+            state = {
+                "recommendation": rec_data,
+                "tariff_context": {
+                    "rules": [{"cited_rule": rec_data.get("cited_rule", "demand_charge_15min_peak"), "threshold_kw": rec_data.get("optimized_peak_kw", 420.0)}]
+                },
+                "readings": [],
+                "anomaly_detected": True,
+            }
+
+        answer = copilot_answer(body.question, state)
+        return {"answer": answer, "intent_routed": True}
+    except HTTPException:
+        raise
+    except ImportError as e:
+        raise HTTPException(status_code=503, detail=f"Agent dependencies not installed: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Copilot error: {str(e)}")
 
 
 @app.websocket("/ws/telemetry")

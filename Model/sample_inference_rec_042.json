@@ -9,24 +9,30 @@
     {
       "action_type": "pre_cool",
       "target_zone": "z_hvac_3",
-      "temp_delta_celsius": -1.5
+      "temp_delta_celsius": -1.5,
+      "time_window": "05:00-05:45 AM",
+      "description": "Pre-cool Zone 3 by 1.5\u00b0C before tariff peak to build thermal inertia"
     },
     {
       "action_type": "delay_start",
       "target_equipment": "eq_comp_1",
-      "delay_minutes": 20
+      "delay_minutes": 20,
+      "time_window": "06:00-06:20 AM",
+      "description": "Stagger Screw Air Compressor #1 startup by 20 mins to prevent simultaneous inrush"
     },
     {
       "action_type": "soft_ramp",
       "target_equipment": "eq_chiller_2",
-      "ramp_cap_pct": 50.0
+      "ramp_cap_pct": 50.0,
+      "time_window": "06:00-06:15 AM",
+      "description": "Soft-ramp Centrifugal Chiller #2 capped at 50% capacity during grid ramp window"
     }
   ],
-  "estimated_savings_inr": 138855.0,
+  "estimated_savings_inr": 333472.5,
   "spike_risk_reduction_pct": 62.5,
-  "baseline_peak_kw": 777.71,
-  "optimized_peak_kw": 397.71000000000004,
-  "reasoning": "Simultaneous restart of Chiller #2 (+180 kW) and Compressor #1 (+140 kW) creates a 777.71 kW demand spike between 06:00-06:15 AM, exceeding the 500 kW contract limit. Staggering compressor restart and pre-cooling Zone HVAC-3 reduces peak load to 420.0 kW.",
+  "baseline_peak_kw": 1241.05,
+  "optimized_peak_kw": 351.7900000000001,
+  "reasoning": "Simultaneous restart of Chiller #2 (+180 kW) and Compressor #1 (+140 kW) creates a 1241.05 kW demand spike, exceeding the 500.0 kW contract limit. Staggering compressor restart and pre-cooling Zone HVAC-3 reduces peak load to 351.8 kW.",
   "cited_rule": "demand_charge_15min_peak",
   "confidence": 0.94,
   "requires_approval": true,

@@ -37,6 +37,7 @@ class ActionDetail(BaseModel):
     temp_delta_celsius: Optional[float] = Field(None, description="Temperature adjustment in Celsius")
     ramp_cap_pct: Optional[float] = Field(None, description="Capacity percentage during ramp window")
     time_window: Optional[str] = Field(None, description="Operational time window string e.g. 05:00-05:45 AM")
+    description: Optional[str] = Field(None, description="Human-readable description of micro-action")
 
 class RecommendationObject(BaseModel):
     id: str = Field(..., description="Unique recommendation ID e.g. rec_042")
