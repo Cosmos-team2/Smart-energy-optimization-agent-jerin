@@ -29,20 +29,20 @@ def solve_milp_load_staggering(baseline_peak_kw=777.71, contract_demand_limit=50
     # x2: Soft-ramp Chiller #2 kW cap (+80 kW cap during 06:00-06:15 AM)
     # --------------------------------------------------------------------------
     
-    # Objective: Maximize total peak kW reduction = x0 + x1 + x2
-    # Convert to minimization: - (x0 + x1 + x2)
-    c = [-1.0, -1.0, -1.0]
+    # Dynamic bounds scaled to baseline peak excess over contract limit
+    needed_reduction = max(0.0, baseline_peak_kw - contract_demand_limit)
+    max_x0 = max(140.0, needed_reduction * 0.45)
+    max_x1 = max(140.0, needed_reduction * 0.45)
+    max_x2 = max(100.0, needed_reduction * 0.30)
     
     # Inequality constraints A_ub * x <= b_ub
-    # Constraint 1: Peak reduction must be enough to bring peak below 500 kW
     # (baseline_peak_kw - (x0 + x1 + x2)) <= contract_demand_limit
-    # -x0 - x1 - x2 <= contract_demand_limit - baseline_peak_kw = 500.0 - 777.71 = -277.71
     A_ub = [[-1.0, -1.0, -1.0]]
     b_ub = [contract_demand_limit - baseline_peak_kw]
     
-    # Variable Bounds (x0: 10 to 140 kW, x1: 50 to 140 kW, x2: 20 to 100 kW)
-    bounds = [(10.0, 140.0), (50.0, 140.0), (20.0, 100.0)]
+    bounds = [(10.0, max_x0), (20.0, max_x1), (20.0, max_x2)]
     
+    c = [-1.0, -1.0, -1.0]
     res = linprog(c, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
     
     if res.success:
@@ -65,24 +65,30 @@ def solve_milp_load_staggering(baseline_peak_kw=777.71, contract_demand_limit=50
                 {
                     "action_type": "pre_cool",
                     "target_zone": "z_hvac_3",
-                    "temp_delta_celsius": -1.5
+                    "temp_delta_celsius": -1.5,
+                    "time_window": "05:00-05:45 AM",
+                    "description": "Pre-cool Zone 3 by 1.5°C before tariff peak to build thermal inertia"
                 },
                 {
                     "action_type": "delay_start",
                     "target_equipment": "eq_comp_1",
-                    "delay_minutes": 20
+                    "delay_minutes": 20,
+                    "time_window": "06:00-06:20 AM",
+                    "description": "Stagger Screw Air Compressor #1 startup by 20 mins to prevent simultaneous inrush"
                 },
                 {
                     "action_type": "soft_ramp",
                     "target_equipment": "eq_chiller_2",
-                    "ramp_cap_pct": 50.0
+                    "ramp_cap_pct": 50.0,
+                    "time_window": "06:00-06:15 AM",
+                    "description": "Soft-ramp Centrifugal Chiller #2 capped at 50% capacity during grid ramp window"
                 }
             ],
             "estimated_savings_inr": round(float(single_month_savings), 2),
             "spike_risk_reduction_pct": 62.5,
             "baseline_peak_kw": float(baseline_peak_kw),
             "optimized_peak_kw": float(optimized_peak_kw),
-            "reasoning": "Simultaneous restart of Chiller #2 (+180 kW) and Compressor #1 (+140 kW) creates a 777.71 kW demand spike between 06:00-06:15 AM, exceeding the 500 kW contract limit. Staggering compressor restart and pre-cooling Zone HVAC-3 reduces peak load to 420.0 kW.",
+            "reasoning": f"Simultaneous restart of Chiller #2 (+180 kW) and Compressor #1 (+140 kW) creates a {baseline_peak_kw:.2f} kW demand spike, exceeding the {contract_demand_limit:.1f} kW contract limit. Staggering compressor restart and pre-cooling Zone HVAC-3 reduces peak load to {optimized_peak_kw:.1f} kW.",
             "cited_rule": "demand_charge_15min_peak",
             "confidence": 0.94,
             "requires_approval": True,
@@ -90,10 +96,15 @@ def solve_milp_load_staggering(baseline_peak_kw=777.71, contract_demand_limit=50
         }
         
         # Save payload to JSON file in Model directory
-        with open("sample_inference_rec_042.json", "w") as f:
-            json.dump(rec_object, f, indent=2)
-            
-        print(f"[+] Recommendation payload written to: D:\\Cognizant-hackathon\\Model\\sample_inference_rec_042.json")
+        try:
+            from pathlib import Path
+            out_file = Path(__file__).resolve().parent / "sample_inference_rec_042.json"
+            with open(out_file, "w") as f:
+                json.dump(rec_object, f, indent=2)
+            print(f"[+] Recommendation payload written to: {out_file}")
+        except Exception as err:
+            print(f"[!] Warning writing sample inference file: {err}")
+
         return rec_object
     else:
         raise RuntimeError("MILP Solver failed to find an optimal solution!")
