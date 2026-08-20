@@ -89,38 +89,38 @@ def get_mock_response(task_type: str, prompt: str) -> str:
 
 def route_to_llm(task_type: str, prompt: str) -> str:
     """
-    Routes the prompt to either Groq or Gemini based on task type.
-    Uses in-memory cache to skip API calls for duplicate prompts.
+    Routes the prompt to Groq LLM for all task types.
+    Uses GROQ_API_KEY only — no Gemini key required.
+    Caches results for anomaly/intent classification tasks (deterministic).
+    Does NOT cache copilot_chat_answers so each user question gets a fresh response.
     """
-    phash = get_prompt_hash(prompt)
-    if phash in _prompt_cache:
-        print(f"[Cache Hit] Returning cached response for task '{task_type}' (hash: {phash[:8]})")
-        return _prompt_cache[phash]
+    # Only cache deterministic classification tasks, NOT conversational copilot answers
+    use_cache = task_type in ["anomaly_classification", "intent_classification", "explainer_generation"]
     
-    # Check if we should call the live API
-    use_live_api = False
-    if task_type in ["anomaly_classification", "intent_classification"]:
-        if GROQ_API_KEY and GROQ_API_KEY.strip() and not GROQ_API_KEY.startswith("your_"):
-            use_live_api = True
-    else:
-        if GEMINI_API_KEY and GEMINI_API_KEY.strip() and not GEMINI_API_KEY.startswith("your_"):
-            use_live_api = True
+    if use_cache:
+        phash = get_prompt_hash(prompt)
+        if phash in _prompt_cache:
+            print(f"[Cache Hit] Returning cached response for task '{task_type}' (hash: {phash[:8]})")
+            return _prompt_cache[phash]
+
+    # Check if we should call the live Groq API
+    use_live_api = bool(GROQ_API_KEY and GROQ_API_KEY.strip() and not GROQ_API_KEY.startswith("your_"))
 
     response_text = ""
     if use_live_api:
         try:
-            if task_type in ["anomaly_classification", "intent_classification"]:
-                response_text = call_groq(prompt)
-            else:
-                response_text = call_gemini(prompt)
+            # All tasks go through Groq — no Gemini key required
+            response_text = call_groq(prompt, model="llama-3.3-70b-versatile")
         except Exception as e:
-            print(f"[LLM Router Warning] Live API call failed: {e}. Falling back to Mock Mode.")
+            print(f"[LLM Router Warning] Groq API call failed for task '{task_type}': {e}. Falling back to Mock Mode.")
             response_text = get_mock_response(task_type, prompt)
     else:
-        # Debug trace
-        # print(f"[Mock Mode] Simulating response for task '{task_type}'")
+        print(f"[Mock Mode] GROQ_API_KEY not set — using mock response for task '{task_type}'")
         response_text = get_mock_response(task_type, prompt)
 
-    # Store in cache
-    _prompt_cache[phash] = response_text
+    # Cache deterministic tasks only
+    if use_cache:
+        phash = get_prompt_hash(prompt)
+        _prompt_cache[phash] = response_text
+    
     return response_text

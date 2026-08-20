@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { WebSocketEvent, SeedDataRecord, TelemetryAlert } from "@/types/contracts";
 import { telemetryWS } from "@/services/mockWebSocket";
-import { SEED_DEMAND_CURVE } from "@/services/apiService";
+import { SEED_DEMAND_CURVE, apiService } from "@/services/apiService";
 import { toHHMM } from "@/lib/utils";
 
 export interface TelemetryState {
@@ -56,6 +56,24 @@ export function useTelemetryStream() {
     spikeRiskPct: 62.5,
     liveSavingsInr: 130000,
   });
+
+  // Fetch live KPI values from backend on mount
+  useEffect(() => {
+    apiService.wakeUpBackend().then((alive) => {
+      if (alive) {
+        apiService.getRecommendation("rec_042").then((rec) => {
+          if (rec && rec.estimated_savings_inr && rec.spike_risk_reduction_pct) {
+            setTelemetry((prev) => ({
+              ...prev,
+              liveSavingsInr: rec.estimated_savings_inr,
+              spikeRiskPct: rec.spike_risk_reduction_pct,
+              currentPeakKw: rec.baseline_peak_kw ?? prev.currentPeakKw,
+            }));
+          }
+        }).catch(() => {/* stay with fixture values */});
+      }
+    });
+  }, []);
 
   useEffect(() => {
     telemetryWS.connect();

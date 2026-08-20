@@ -14,8 +14,16 @@ import {
 } from "@/types/contracts";
 import { createMockWeatherEnvelope, unwrapMCPEnvelope } from "./mcpAdapter";
 
-// API Base URL - Switchable via environment variable or default
+// API Base URL - must be set via NEXT_PUBLIC_API_URL environment variable on Vercel/deployment
+// When empty, all API calls fail and fall back to offline fixtures — set this env var!
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+
+if (!API_BASE_URL && typeof window !== "undefined") {
+  console.warn(
+    "[apiService] NEXT_PUBLIC_API_URL is not set! All data is coming from local fixtures. " +
+    "Set NEXT_PUBLIC_API_URL=https://optigrid-backend.onrender.com in your deployment environment."
+  );
+}
 
 // Canonical rec_042 fixture (Contract 3)
 export const CANONICAL_REC_042: RecommendationObject = {
@@ -130,12 +138,51 @@ export const SEED_DEMAND_CURVE: SeedDataRecord[] = [
  */
 export const apiService = {
   /**
-   * 1. Onboard Facility / Geocode & Context Fan-Out Simulation
+   * 1. Wake up backend (important for Render free tier cold starts)
+   */
+  async wakeUpBackend(): Promise<boolean> {
+    if (!API_BASE_URL) return false;
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  /**
+   * 2. Onboard Facility / Geocode via real MCP backend endpoint
    */
   async onboardSiteGeocode(address: string): Promise<OnboardingSiteResult> {
-    // Structure handler for future real geocode -> MCP context fan-out
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
+    // Try real MCP geocoding via backend OSM Nominatim
+    if (API_BASE_URL) {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/mcp/geocode?address=${encodeURIComponent(address)}`,
+          { cache: "no-store" }
+        );
+        if (res.ok) {
+          const envelope = await res.json();
+          const loc = envelope.location || {};
+          const payload = envelope.payload || {};
+          return {
+            address: address,
+            facility_id: "f_001",
+            facility_name: payload.display_name || address,
+            coordinates: { lat: loc.lat || 12.9716, lon: loc.lon || 77.5946 },
+            discom: "BESCOM HT-2a Industrial / Commercial",
+            contract_limit_kw: 500.0,
+            baseline_peak_kw: 777.71,
+            potential_monthly_savings_inr: 130000.0,
+            tariff_scheme: "Time of Day (TOD) + 15-min Peak Demand Charge",
+          };
+        }
+      } catch (err) {
+        console.warn(`[apiService] onboardSiteGeocode geocoding failed:`, err);
+      }
+    }
+    // Fallback: static fixture
+    await new Promise((resolve) => setTimeout(resolve, 800));
     return {
       address: address || "Plot 42, Electronic City Phase 1, Bengaluru, Karnataka 560100",
       facility_id: "f_001",
