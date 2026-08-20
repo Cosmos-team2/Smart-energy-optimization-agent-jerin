@@ -126,25 +126,12 @@ export default function SinglePageApp() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const scrollToHero = () => {
-    heroRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const scrollToMap = () => {
-    mapRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const scrollToTwin = () => {
-    twinRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const scrollToDashboard = () => {
-    dashboardRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const scrollToApproval = () => {
-    approvalRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Scroll handlers for NavBar
+  const scrollToHero = () => heroRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToMap = () => mapRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToTwin = () => twinRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToDashboard = () => dashboardRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToApproval = () => approvalRef.current?.scrollIntoView({ behavior: "smooth" });
 
   // Approval Gate state
   const [recommendation, setRecommendation] = useState<RecommendationObject>(CANONICAL_REC_042);
@@ -163,9 +150,8 @@ export default function SinglePageApp() {
       setAuditTimestamp(new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }));
     } catch (err: any) {
       console.error(err);
-      setRecommendation((prev) => ({ ...prev, status: "approved" }));
-      setApiResponseMsg("Local fallback: Plan approved (simulated response).");
-      setAuditTimestamp(new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }));
+      setApiResponseMsg("Approval call failed — using local state fallback.");
+      setRecommendation({ ...recommendation, status: "approved" });
     } finally {
       setIsActionLoading(false);
     }
@@ -177,16 +163,38 @@ export default function SinglePageApp() {
     try {
       const updated = await apiService.rejectRecommendation(recommendation.id);
       setRecommendation(updated.recommendation);
-      setApiResponseMsg("Recommendation rejected. Facility retains baseline operational profile.");
+      setApiResponseMsg("Recommendation rejected. Baseline operation retained.");
       setAuditTimestamp(new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }));
     } catch (err: any) {
       console.error(err);
-      setRecommendation((prev) => ({ ...prev, status: "rejected" }));
-      setApiResponseMsg("Local fallback: Plan rejected (simulated response).");
-      setAuditTimestamp(new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }));
+      setApiResponseMsg("Rejection call failed — using local state fallback.");
+      setRecommendation({ ...recommendation, status: "rejected" });
     } finally {
       setIsActionLoading(false);
     }
+  };
+
+  // Live WebSocket telemetry stream
+  const { readings, liveKpi, isConnected } = useTelemetryStream({
+    facilityId: "f_001",
+    zoneId: "z_hvac_3",
+  });
+
+  const latestReading = readings.length > 0 ? readings[readings.length - 1] : null;
+
+  const telemetry = {
+    currentTotalKw: latestReading?.total_kw ?? liveKpi.total_kw,
+    baselineKw: latestReading?.base_kw ?? liveKpi.base_kw,
+    hvacKw: latestReading?.hvac_kw ?? liveKpi.hvac_kw,
+    compKw: latestReading?.comp_kw ?? liveKpi.comp_kw,
+    liveSavingsInr: recommendation.estimated_savings_inr,
+    contractLimitKw: 500,
+    isSpike: (latestReading?.is_spike_event ?? 0) === 1,
+    spikeRiskPct: 75,
+    trendData: [],
+    alerts: [],
+    isConnected: isConnected,
+    currentPeakKw: 0,
   };
 
   const isApproved = recommendation.status === "approved" || recommendation.status === "executed";
@@ -211,7 +219,7 @@ export default function SinglePageApp() {
           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--color-error)]/20 text-[var(--color-error)] border border-[var(--color-error)]/40 shadow-sm"
         >
           <XCircle className="h-4 w-4 text-[var(--color-error)]" />
-          REJECTED / OVERRIDDEN
+          REJECTED BY OPERATOR
         </span>
       );
     }
@@ -229,8 +237,7 @@ export default function SinglePageApp() {
   const formattedSavings = `₹${Number(telemetry.liveSavingsInr).toLocaleString("en-IN")}`;
 
   return (
-    <MCPStateProvider>
-      <div className="relative min-h-screen" style={{ background: "#0A0A14", color: "#F0F0FF" }}>
+    <div className="relative min-h-screen" style={{ background: "#0A0A14", color: "#F0F0FF" }}>
       {/* Sliding Unified NavBar */}
       <NavBar
         visible={navVisible}
@@ -681,6 +688,13 @@ export default function SinglePageApp() {
       {/* Floating AI Copilot Widget & Drawer */}
       <AICopilotDrawer />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <MCPStateProvider>
+      <HomeContent />
     </MCPStateProvider>
   );
 }
