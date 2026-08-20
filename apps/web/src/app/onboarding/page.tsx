@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { MapPin, ArrowRight, Loader2, CheckCircle2, Sparkles, Building } from "lucide-react";
 import { apiService } from "@/services/apiService";
-import { PRESETS, getPresetById } from "../../../../../packages/shared/facility-presets";
+import { PRESETS, getPresetById } from "@/data/facilityPresets";
 
 function OnboardingContent() {
   const searchParams = useSearchParams();
