@@ -160,8 +160,9 @@ export const apiService = {
       if (res.ok) {
         return await res.json();
       }
-    } catch {
-      // Graceful fallback to canonical model
+      console.warn(`[apiService] getFacility(${facilityId}) backend returned ${res.status}, falling back to canonical fixture`);
+    } catch (err) {
+      console.warn(`[apiService] getFacility(${facilityId}) backend offline, falling back to canonical fixture:`, err);
     }
     return CANONICAL_FACILITY;
   },
@@ -177,8 +178,9 @@ export const apiService = {
       if (res.ok) {
         return await res.json();
       }
-    } catch {
-      // Graceful fallback to seed demand curve
+      console.warn(`[apiService] getReadings backend returned ${res.status}, falling back to seed fixture`);
+    } catch (err) {
+      console.warn(`[apiService] getReadings backend offline, falling back to seed fixture:`, err);
     }
     return SEED_DEMAND_CURVE.slice(0, limit);
   },
@@ -194,8 +196,9 @@ export const apiService = {
       if (res.ok) {
         return await res.json();
       }
-    } catch {
-      // Graceful fallback
+      console.warn(`[apiService] getRecommendation(${id}) backend returned ${res.status}, falling back to canonical fixture`);
+    } catch (err) {
+      console.warn(`[apiService] getRecommendation(${id}) backend offline, falling back to canonical fixture:`, err);
     }
     return CANONICAL_REC_042;
   },
@@ -226,8 +229,9 @@ export const apiService = {
           recommendation: data.recommendation || { ...CANONICAL_REC_042, status: "approved" },
         };
       }
+      console.warn(`[apiService] approveRecommendation(${id}) backend returned ${res.status}, falling back to local simulation`);
     } catch (err) {
-      console.warn("API approve call fallback:", err);
+      console.warn(`[apiService] approveRecommendation(${id}) backend offline, falling back to local simulation:`, err);
     }
 
     // Fallback response for standalone/stub execution
@@ -272,8 +276,9 @@ export const apiService = {
           recommendation: data.recommendation || { ...CANONICAL_REC_042, status: "rejected" },
         };
       }
+      console.warn(`[apiService] rejectRecommendation(${id}) backend returned ${res.status}, falling back to local simulation`);
     } catch (err) {
-      console.warn("API reject call fallback:", err);
+      console.warn(`[apiService] rejectRecommendation(${id}) backend offline, falling back to local simulation:`, err);
     }
 
     // Fallback response for standalone/stub execution
@@ -306,8 +311,9 @@ export const apiService = {
       if (res.ok) {
         return await res.json();
       }
-    } catch {
-      // Graceful fallback
+      console.warn(`[apiService] getWeatherMCPContext backend returned ${res.status}, falling back to mock envelope`);
+    } catch (err) {
+      console.warn(`[apiService] getWeatherMCPContext backend offline, falling back to mock envelope:`, err);
     }
     return createMockWeatherEnvelope();
   },

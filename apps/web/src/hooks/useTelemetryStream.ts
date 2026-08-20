@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { WebSocketEvent, SeedDataRecord, TelemetryAlert } from "@/types/contracts";
 import { telemetryWS } from "@/services/mockWebSocket";
 import { SEED_DEMAND_CURVE } from "@/services/apiService";
+import { toHHMM } from "@/lib/utils";
 
 export interface TelemetryState {
   isConnected: boolean;
@@ -60,12 +61,20 @@ export function useTelemetryStream() {
     telemetryWS.connect();
 
     const unsubscribe = telemetryWS.subscribe((event: WebSocketEvent) => {
-      if (event.event === "reading") {
+      if (event.event === "status") {
+        const statusPayload = event.payload as { status: string };
+        setTelemetry((prev) => ({
+          ...prev,
+          isConnected: statusPayload.status === "connected",
+        }));
+      } else if (event.event === "reading") {
         const reading = event.payload as SeedDataRecord;
+        if (typeof reading.total_kw !== "number") return;
+        const normalizedDatetime = toHHMM(reading.Datetime);
         setTelemetry((prev) => {
           // Update the current reading and shift trend slightly for animation
           const updatedTrend = prev.trendData.map((item) =>
-            item.Datetime === reading.Datetime ? { ...item, total_kw: reading.total_kw, optimized_kw: reading.optimized_kw } : item
+            item.Datetime === normalizedDatetime ? { ...item, total_kw: reading.total_kw, optimized_kw: reading.optimized_kw } : item
           );
 
           return {
@@ -92,6 +101,7 @@ export function useTelemetryStream() {
 
     return () => {
       unsubscribe();
+      telemetryWS.disconnect();
     };
   }, []);
 

@@ -72,7 +72,7 @@ export interface RecommendationObject {
 // 3. Contract 2: WebSocket Event Schema
 // ==========================================
 
-export type WebSocketEventType = "reading" | "alert" | "recommendation" | "approval_update";
+export type WebSocketEventType = "reading" | "alert" | "recommendation" | "approval_update" | "status";
 
 export interface WebSocketEvent<T = Record<string, any>> {
   event: WebSocketEventType;

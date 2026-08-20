@@ -154,7 +154,7 @@ export default function SinglePageApp() {
     setApiResponseMsg(null);
     try {
       const updated = await apiService.approveRecommendation(recommendation.id);
-      setRecommendation(updated);
+      setRecommendation(updated.recommendation);
       setApiResponseMsg("Recommendation approved! Optimization stagger plan is now active.");
       setAuditTimestamp(new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }));
     } catch (err: any) {
@@ -172,7 +172,7 @@ export default function SinglePageApp() {
     setApiResponseMsg(null);
     try {
       const updated = await apiService.rejectRecommendation(recommendation.id);
-      setRecommendation(updated);
+      setRecommendation(updated.recommendation);
       setApiResponseMsg("Recommendation rejected. Facility retains baseline operational profile.");
       setAuditTimestamp(new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }));
     } catch (err: any) {
@@ -361,33 +361,42 @@ export default function SinglePageApp() {
           <KPICard
             title="SAVINGS THIS MONTH"
             value={formattedSavings}
-            subtitle="Avoided DISCOM 15-min demand charge penalty"
+            subValue="Avoided DISCOM 15-min demand charge penalty"
             badgeText="VERIFIED TARIFF"
-            badgeVariant="success"
-            trend="+18.4% vs previous billing cycle"
-            trendPositive={true}
+            badgeType="emerald"
             icon={IndianRupee}
-            gradient={true}
+            glow={true}
+            trend={{
+              value: "+18.4%",
+              isPositive: true,
+              label: "vs previous billing cycle",
+            }}
           />
           <KPICard
             title="SPIKE RISK"
             value={`${telemetry.spikeRiskPct}%`}
-            subtitle="Unmanaged: 777.71 kW (exceeds 500 kW limit)"
+            subValue="Unmanaged: 777.71 kW (exceeds 500 kW limit)"
             badgeText="CRITICAL WINDOW"
-            badgeVariant="warning"
-            trend="-62.5% risk reduction with stagger plan"
-            trendPositive={true}
+            badgeType="rose"
             icon={AlertOctagon}
+            trend={{
+              value: "-62.5%",
+              isPositive: true,
+              label: "risk reduction with stagger plan",
+            }}
           />
           <KPICard
             title="PROJECTED ROI"
             value="4.8x"
-            subtitle="₹15.6L annualized demand charge savings"
+            subValue="₹15.6L annualized demand charge savings"
             badgeText="1.8 MO PAYBACK"
-            badgeVariant="info"
-            trend="Zero Capex no hardware retrofits required"
-            trendPositive={true}
+            badgeType="cyan"
             icon={TrendingUp}
+            trend={{
+              value: "Zero Capex",
+              isPositive: true,
+              label: "no hardware retrofits required",
+            }}
           />
         </div>
 
@@ -406,6 +415,7 @@ export default function SinglePageApp() {
             <AlertsInbox
               alerts={telemetry.alerts}
               onSelectRecommendation={scrollToApproval}
+              isConnected={telemetry.isConnected}
             />
           </div>
         </div>

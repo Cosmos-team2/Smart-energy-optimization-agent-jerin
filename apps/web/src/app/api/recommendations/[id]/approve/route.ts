@@ -27,8 +27,16 @@ export async function POST(
       const data = await backendRes.json();
       return NextResponse.json(data);
     }
-  } catch {
-    // FastAPI server not reachable or endpoint not implemented yet in backend spine
+
+    // Backend returned an error — propagate it
+    const errorBody = await backendRes.text();
+    console.error(`[route:POST /api/recommendations/${id}/approve] Backend returned ${backendRes.status}: ${errorBody}`);
+    return NextResponse.json(
+      { error: `Backend error: ${backendRes.status}`, detail: errorBody },
+      { status: backendRes.status }
+    );
+  } catch (err) {
+    console.warn(`[route:POST /api/recommendations/${id}/approve] Backend offline, falling back to canonical fixture:`, err);
   }
 
   // Return canonical Contract 3 response with approved status

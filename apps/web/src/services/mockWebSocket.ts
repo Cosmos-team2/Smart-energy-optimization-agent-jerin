@@ -14,6 +14,7 @@ export class TelemetryWebSocketClient {
   private subscribers: Set<EventCallback> = new Set();
   private intervalTimer: NodeJS.Timeout | null = null;
   private isConnected = false;
+  private isDisconnecting = false;
   private currentIndex = 7; // Start near the 06:00 AM spike event
 
   constructor(private url: string = "ws://127.0.0.1:8000/ws/telemetry") {}
@@ -44,7 +45,9 @@ export class TelemetryWebSocketClient {
 
       this.ws.onclose = () => {
         this.isConnected = false;
-        this.startSyntheticStream();
+        if (!this.isDisconnecting) {
+          this.startSyntheticStream();
+        }
       };
     } catch {
       this.startSyntheticStream();
@@ -64,7 +67,7 @@ export class TelemetryWebSocketClient {
 
   private broadcastStatus(connected: boolean) {
     const statusEvent: WebSocketEvent<{ status: string }> = {
-      event: "reading",
+      event: "status",
       facility_id: "f_001",
       timestamp: new Date().toISOString(),
       payload: { status: connected ? "connected" : "simulated_live" },
@@ -125,6 +128,7 @@ export class TelemetryWebSocketClient {
   }
 
   public disconnect() {
+    this.isDisconnecting = true;
     if (this.intervalTimer) {
       clearInterval(this.intervalTimer);
       this.intervalTimer = null;

@@ -17,6 +17,14 @@ class MCPEnvelope(BaseModel):
     confidence: float = Field(1.0, ge=0.0, le=1.0, description="Confidence score of context data (0.0 to 1.0)")
 
 
+class MCPEnvelopeRequest(BaseModel):
+    source: str = Field("open-meteo", description="Source of context data")
+    payload: Dict[str, Any] = Field(default_factory=dict, description="Raw context tool data payload")
+    lat: float = Field(12.9716, description="Facility latitude")
+    lon: float = Field(77.5946, description="Facility longitude")
+    confidence: float = Field(0.95, ge=0.0, le=1.0, description="Confidence score")
+
+
 # ==========================================
 # 2. Contract 3: Recommendation Object (Jerin's Base Extended)
 # ==========================================
@@ -53,7 +61,7 @@ class RecommendationObject(BaseModel):
 # ==========================================
 
 class WebSocketEvent(BaseModel):
-    event: Literal["reading", "alert", "recommendation", "approval_update"] = Field(
+    event: Literal["reading", "alert", "recommendation", "approval_update", "status"] = Field(
         ..., description="Event type emitted over real-time telemetry stream"
     )
     facility_id: str = Field(..., description="Facility ID e.g. f_001")

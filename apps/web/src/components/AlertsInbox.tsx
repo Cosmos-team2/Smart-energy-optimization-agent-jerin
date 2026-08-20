@@ -6,9 +6,10 @@ import { TelemetryAlert } from "@/types/contracts";
 interface AlertsInboxProps {
   alerts?: TelemetryAlert[];
   onSelectRecommendation?: () => void;
+  isConnected?: boolean;
 }
 
-export function AlertsInbox({ alerts = [], onSelectRecommendation }: AlertsInboxProps) {
+export function AlertsInbox({ alerts = [], onSelectRecommendation, isConnected = true }: AlertsInboxProps) {
   const cfg = (s: TelemetryAlert["severity"]) =>
     ({
       critical: {
@@ -123,8 +124,11 @@ export function AlertsInbox({ alerts = [], onSelectRecommendation }: AlertsInbox
         style={{ borderColor: "var(--color-border)", color: "var(--color-subtle)" }}
       >
         <span className="font-mono">ws://127.0.0.1:8000/ws/telemetry</span>
-        <span style={{ color: "var(--color-success)" }} className="font-semibold">
-          ● Live
+        <span
+          className="font-semibold"
+          style={{ color: isConnected ? "var(--color-success)" : "var(--color-error)" }}
+        >
+          ● {isConnected ? "Live" : "Offline"}
         </span>
       </div>
     </div>

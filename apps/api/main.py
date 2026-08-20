@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Literal
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 
 # Add repository root to python path to resolve packages.contracts.models across child processes
@@ -25,6 +25,7 @@ from packages.contracts.models import (
     Location,
     RecommendationObject,
     MCPEnvelope,
+    MCPEnvelopeRequest,
     WebSocketEvent,
     SeedDataRecord,
 )
@@ -184,20 +185,20 @@ def list_recommendations():
 
 
 @app.post("/api/mcp/envelope", response_model=MCPEnvelope)
-def create_mcp_envelope(
-    source: str = "open-meteo",
-    payload: Dict[str, Any] = None,
-    lat: float = 12.9716,
-    lon: float = 77.5946,
-    confidence: float = 0.95,
-):
+def create_mcp_envelope(body: MCPEnvelopeRequest):
     """Wrap raw tool data into standard MCP Envelope (Contract 4)."""
     return MCPEnvelope(
-        source=source,
+        source=body.source,
         timestamp="2026-08-14T06:00:00+05:30",
-        location=Location(lat=lat, lon=lon),
-        payload=payload or {"temp_celsius": 38.0, "humidity_pct": 45.0},
-        confidence=confidence,
+        location=Location(lat=body.lat, lon=body.lon),
+        payload={
+            "temp_celsius": body.payload.get("temp_celsius", 38.0),
+            "humidity_pct": body.payload.get("humidity_pct", 45.0),
+            "solar_ghi": body.payload.get("solar_ghi", 742.0),
+            "tod_rate_inr": body.payload.get("tod_rate_inr", 9.85),
+            "demand_charge_rate_inr": body.payload.get("demand_charge_rate_inr", 450.0),
+        },
+        confidence=body.confidence,
     )
 
 

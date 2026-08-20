@@ -105,7 +105,7 @@ export default function DashboardPage() {
 
         {/* Alerts Inbox: 1/3 width */}
         <div className="lg:col-span-1">
-          <AlertsInbox alerts={telemetry.alerts} />
+          <AlertsInbox alerts={telemetry.alerts} isConnected={telemetry.isConnected} />
         </div>
       </div>
 

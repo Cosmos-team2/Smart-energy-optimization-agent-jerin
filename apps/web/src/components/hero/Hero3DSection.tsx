@@ -104,7 +104,6 @@ export function Hero3DSection({ onExplore }: Hero3DSectionProps) {
 
       <div style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none" }}>
         <HeroOverlay
-          phase={phase}
           onOpenHowItWorks={() => setHowItWorksOpen(true)}
           onExplore={onExplore}
         />

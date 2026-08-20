@@ -18,8 +18,16 @@ export async function GET(
       const data = await backendRes.json();
       return NextResponse.json(data);
     }
-  } catch {
-    // Backend offline fallback
+
+    // Backend returned an error — propagate it
+    const errorBody = await backendRes.text();
+    console.error(`[route:GET /api/recommendations/${id}] Backend returned ${backendRes.status}: ${errorBody}`);
+    return NextResponse.json(
+      { error: `Backend error: ${backendRes.status}`, detail: errorBody },
+      { status: backendRes.status }
+    );
+  } catch (err) {
+    console.warn(`[route:GET /api/recommendations/${id}] Backend offline, falling back to canonical fixture:`, err);
   }
 
   return NextResponse.json({

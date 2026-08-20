@@ -1,11 +1,5 @@
 import { useState } from "react";
-import { badgeForPhase } from "./story.js";
 import { COLORS } from "./palette.js";
-import {
-  BASELINE_PEAK_KW,
-  OPTIMIZED_PEAK_KW,
-  CONTRACT_LIMIT_KW,
-} from "./story.js";
 
 // ─── Logo ────────────────────────────────────────────────────────────────────
 function OptiGridLogo() {
@@ -59,105 +53,13 @@ function OptiGridLogo() {
   );
 }
 
-// ─── Metric chip ─────────────────────────────────────────────────────────────
-function MetricChip({ label, value }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 3,
-        padding: "10px 20px",
-        borderLeft: "1px solid rgba(139,92,246,0.15)",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 9.5,
-          fontWeight: 700,
-          letterSpacing: 2.2,
-          textTransform: "uppercase",
-          color: COLORS.textDim,
-          fontFamily: "'Inter', system-ui, sans-serif",
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: COLORS.textMuted,
-          fontFamily: "'Inter', system-ui, sans-serif",
-          letterSpacing: 0.1,
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-// ─── Story badge (top-right corner) ──────────────────────────────────────────
-function StoryBadge({ badge }) {
-  if (!badge) return null;
-  const isDanger = badge.tone === "danger";
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 72,
-        right: 28,
-        padding: "10px 16px",
-        borderRadius: 8,
-        background: "rgba(7,7,15,0.88)",
-        border: `1px solid ${isDanger ? "rgba(239,68,68,0.45)" : "rgba(63,233,214,0.4)"}`,
-        fontFamily: "'Inter', system-ui, sans-serif",
-        boxShadow: `0 8px 28px rgba(0,0,0,0.5), 0 0 20px ${isDanger ? "rgba(239,68,68,0.08)" : "rgba(63,233,214,0.06)"}`,
-        backdropFilter: "blur(8px)",
-        minWidth: 152,
-        pointerEvents: "none",
-        animation: "fadeInUp 0.3s ease",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 9.5,
-          fontWeight: 700,
-          letterSpacing: 1.8,
-          textTransform: "uppercase",
-          color: isDanger ? "#f87171" : COLORS.energyCyan,
-          marginBottom: 4,
-        }}
-      >
-        {badge.title}
-      </div>
-      <div style={{ fontSize: 21, fontWeight: 700, color: COLORS.white, lineHeight: 1.1 }}>
-        {badge.value}
-      </div>
-      <div style={{ fontSize: 10.5, color: COLORS.textDim, marginTop: 3, letterSpacing: 0.5 }}>
-        {badge.sub}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main overlay ────────────────────────────────────────────────────────────
-export default function HeroOverlay({ phase, onOpenHowItWorks, onExplore }) {
-  const badge = badgeForPhase(phase);
-
+export default function HeroOverlay({ onOpenHowItWorks, onExplore }) {
   const [exploreHover, setExploreHover] = useState(false);
   const [watchHover, setWatchHover] = useState(false);
 
   return (
     <>
-      <style>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
-
       <div
         style={{
           position: "absolute",
@@ -342,54 +244,6 @@ export default function HeroOverlay({ phase, onOpenHowItWorks, onExplore }) {
               </span>
               See How It Works
             </button>
-          </div>
-        </div>
-
-        {/* ── Story badge ─────────────────────────────────────────────────── */}
-        <StoryBadge badge={badge} />
-
-        {/* ── Bottom metrics strip ─────────────────────────────────────────── */}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 64,
-            display: "flex",
-            alignItems: "center",
-            padding: "0 52px",
-            pointerEvents: "none",
-            background:
-              "linear-gradient(to top, rgba(7,7,15,0.85) 0%, rgba(7,7,15,0) 100%)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "stretch",
-              borderTop: "1px solid rgba(139,92,246,0.1)",
-              paddingTop: 10,
-              gap: 0,
-              overflow: "hidden",
-            }}
-          >
-            <MetricChip
-              label="15-Min Peak Monitoring"
-              value="Real-time demand intelligence"
-            />
-            <MetricChip
-              label="Energy Optimization"
-              value={`${OPTIMIZED_PEAK_KW.toFixed(1)} kW optimized peak`}
-            />
-            <MetricChip
-              label="Contract Limit"
-              value={`${CONTRACT_LIMIT_KW.toFixed(0)} kW`}
-            />
-            <MetricChip
-              label="Recommendation"
-              value="₹1,30,000 estimated savings"
-            />
           </div>
         </div>
       </div>

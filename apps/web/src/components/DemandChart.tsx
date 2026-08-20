@@ -7,6 +7,7 @@ import {
 import { Zap, ShieldCheck, AlertTriangle } from "lucide-react";
 import { SeedDataRecord } from "@/types/contracts";
 import { SEED_DEMAND_CURVE } from "@/services/apiService";
+import { toHHMM } from "@/lib/utils";
 
 interface DemandChartProps {
   data?: SeedDataRecord[];
@@ -52,7 +53,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function DemandChart({ data = SEED_DEMAND_CURVE, activePeakKw = 777.71 }: DemandChartProps) {
-  const chartData = data && data.length > 0 ? data : SEED_DEMAND_CURVE;
+  const chartData = (data && data.length > 0 ? data : SEED_DEMAND_CURVE).map((item) => ({
+    ...item,
+    Datetime: toHHMM(item.Datetime),
+    optimized_kw: typeof item.optimized_kw === "number" ? item.optimized_kw : item.total_kw,
+  }));
   return (
     <div className="card p-5 sm:p-6 flex flex-col h-full relative overflow-hidden">
       {/* Background glow */}
