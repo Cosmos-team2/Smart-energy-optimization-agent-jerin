@@ -36,7 +36,7 @@ export function Hero3DSection({ onExplore }: Hero3DSectionProps) {
 
   const phase = STORY_STEPS[stepIdx].phase;
   const current = frameForPhase(phase);
-  const focus = selectedId ? FOCUS_PRESETS[selectedId] : null;
+  const focus = selectedId ? FOCUS_PRESETS[selectedId as keyof typeof FOCUS_PRESETS] : null;
 
   return (
     <div
