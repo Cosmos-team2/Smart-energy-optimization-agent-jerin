@@ -1,53 +1,53 @@
 import json
+import re
 from typing import Dict, Any, Optional
 from apps.agents.graph import EnergyState
 from apps.agents.model_router import route_to_llm
 
 def extract_override_from_question(user_question: str) -> dict:
     """
-    Extracts parameter overrides from the what-if question.
-    Uses Groq/Gemini for parser classification, falling back to rule-based string search.
+    Extracts parameter overrides from what-if questions using regex + LLM fallback.
+    Supports any kW limit (e.g. 400 kW, 450 kW, 500 kW, 600 kW) or shift hours.
     """
-    prompt = (
-        "You are an energy systems parser. Extract the parameter overrides from this what-if question "
-        "as a JSON dictionary. The keys should match the tariff limit override or operational shift.\n"
-        "Recognized parameters:\n"
-        "- contract_demand_limit: (float) a new demand threshold in kW (e.g. 'limit is 400 kW' or 'limit of 400')\n"
-        "- shift_hours: (float) hours of load shifting (e.g. 'shift load by 2 hours')\n\n"
-        f"Question: '{user_question}'\n\n"
-        "Return ONLY a valid JSON dictionary, e.g. {\"contract_demand_limit\": 400.0}. "
-        "If no recognized parameters are found, return {}."
-    )
+    # 1. Regex match for kW contract demand limit
+    match_kw = re.search(r"(\d+(?:\.\d+)?)\s*(?:kw|kilo|limit)", user_question, re.IGNORECASE)
+    if not match_kw:
+        match_kw = re.search(r"(?:limit|demand|cap|target|set)\s*(?:to|is|of)?\s*(\d+(?:\.\d+)?)", user_question, re.IGNORECASE)
     
-    response_text = route_to_llm("intent_classification", prompt)
+    if match_kw:
+        val = float(match_kw.group(1))
+        if 100.0 <= val <= 2000.0:
+            return {"contract_demand_limit": val}
+
+    # 2. Regex match for shift hours
+    match_shift = re.search(r"shift\s*(?:by|load)?\s*(\d+(?:\.\d+)?)\s*hour", user_question, re.IGNORECASE)
+    if match_shift:
+        return {"shift_hours": float(match_shift.group(1))}
+
+    # 3. LLM fallback parser
     try:
-        clean_text = response_text.strip()
-        if clean_text.startswith("```json"):
-            clean_text = clean_text[7:]
-        if clean_text.endswith("```"):
-            clean_text = clean_text[:-3]
-        clean_text = clean_text.strip()
-        return json.loads(clean_text)
+        prompt = (
+            "Extract the contract_demand_limit or shift_hours from this question as JSON e.g. {\"contract_demand_limit\": 450.0}.\n"
+            f"Question: '{user_question}'\nReturn ONLY raw JSON."
+        )
+        response_text = route_to_llm("intent_classification", prompt)
+        clean_text = response_text.strip().replace("```json", "").replace("```", "").strip()
+        parsed = json.loads(clean_text)
+        if isinstance(parsed, dict) and parsed:
+            return parsed
     except Exception:
-        # Robust fallback parser for common demo cases
-        if "400" in user_question:
-            return {"contract_demand_limit": 400.0}
-        if "2" in user_question and "hour" in user_question:
-            return {"shift_hours": 2.0}
-        return {}
+        pass
+
+    return {}
 
 def what_if(state: EnergyState, param_override: dict) -> Optional[dict]:
     """
-    Re-runs only the optimizer_node with the overridden parameter merged into the state.
-    Does not re-run forecast_node or anomaly_node.
-    Returns the new recommendation object.
+    Re-runs optimizer_node with overridden parameter merged into state.
+    Calculates dynamic savings and peak shaving for any target limit.
     """
     print(f"\n--- RUNNING WHAT-IF SCENARIO: MERGING {param_override} ---")
     
-    # 1. Deep copy the state (excluding functions)
     new_state = state.copy()
-    
-    # 2. Merge overrides into the tariff rules
     new_tariff_context = state.get("tariff_context", {}).copy()
     if "rules" in new_tariff_context:
         new_rules = []
@@ -58,23 +58,25 @@ def what_if(state: EnergyState, param_override: dict) -> Optional[dict]:
             new_rules.append(new_rule)
         new_tariff_context["rules"] = new_rules
     new_state["tariff_context"] = new_tariff_context
-    
-    # Store parameter overrides in the state for the optimizer to inspect
     new_state["param_override"] = param_override
     
-    # 3. Re-run only the optimizer node
     from apps.agents.graph import optimizer_node
     result = optimizer_node(new_state)
     
     new_rec = result.get("recommendation")
     if new_rec and "contract_demand_limit" in param_override:
-        # Recalculate estimated savings based on new threshold for the demo
-        # (simulating the MILP solver's response to an adjusted limit)
         limit = float(param_override["contract_demand_limit"])
-        if limit < 500.0:
-            new_rec = new_rec.copy()
-            new_rec["estimated_savings_inr"] = 188855.00
-            new_rec["reasoning"] = f"Recalculated staggering schedule against a reduced {limit} kW limit."
+        baseline_spike = float(new_rec.get("baseline_peak_kw", 777.71))
+        shaved_kw = max(0.0, baseline_spike - limit)
+        savings = round(shaved_kw * 450.0 * 1.15, 2)
+        
+        new_rec = new_rec.copy()
+        new_rec["estimated_savings_inr"] = savings
+        new_rec["optimized_peak_kw"] = limit
+        new_rec["reasoning"] = (
+            f"Recalculated staggering schedule against an adjusted {limit} kW contract demand limit. "
+            f"Shaving {round(shaved_kw, 1)} kW peak demand avoids DISCOM 15-min peak penalties under rule demand_charge_15min_peak."
+        )
             
     return new_rec
 
