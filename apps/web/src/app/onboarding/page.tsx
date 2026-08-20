@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { MapPin, ArrowRight, Loader2, CheckCircle2, Sparkles, Building } from "lucide-react";
 import { apiService } from "@/services/apiService";
+import { PRESETS, getPresetById } from "../../../../../packages/shared/facility-presets";
 
-export default function OnboardingPage() {
-  const router = useRouter();
-  const [address, setAddress] = useState("Plot 42, Electronic City Phase 1, Bengaluru, Karnataka 560100");
+function OnboardingContent() {
+  const searchParams = useSearchParams();
+  const facilityId = searchParams?.get("facilityId") || "f_001";
+  const matchedPreset = getPresetById(facilityId);
+
+  const [address, setAddress] = useState(
+    matchedPreset?.address || "Plot 42, Electronic City Phase 1, Bengaluru, Karnataka 560100"
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [stageIndex, setStageIndex] = useState(0);
 
@@ -16,13 +22,13 @@ export default function OnboardingPage() {
     "Geocoding facility coordinates via OSM...",
     "Querying Open-Meteo & NASA POWER Solar GHI...",
     "Analyzing DISCOM 15-min Peak Demand Tariff Rules...",
-    "Digital twin initialized. Redirecting to dashboard...",
+    "Digital twin initialized. Redirecting to twin...",
   ];
 
   /**
    * Submit Handler
    * Encapsulates the geocode -> MCP context fan-out pipeline.
-   * Can be swapped with real async API calls in apiService without touching the UI layout.
+   * Redirects to Twin with facility context in URL params.
    */
   const handleSiteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +49,8 @@ export default function OnboardingPage() {
       console.error("Geocoding / MCP onboarding error:", err);
     } finally {
       clearInterval(stageInterval);
-      router.push("/dashboard");
+      const preset = PRESETS.find((p) => p.facilityId === facilityId) || matchedPreset || PRESETS[0];
+      window.location.href = `http://localhost:5174/?facilityId=${facilityId}&lat=${preset.lat}&lon=${preset.lon}&discom=${encodeURIComponent(preset.discom)}`;
     }
   };
 
@@ -162,5 +169,19 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[78vh] flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+        </div>
+      }
+    >
+      <OnboardingContent />
+    </Suspense>
   );
 }

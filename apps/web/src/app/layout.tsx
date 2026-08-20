@@ -24,6 +24,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`dark ${inter.variable} ${manrope.variable}`}>
+      <head>
+        <link rel="preconnect" href="http://localhost:5174" />
+      </head>
       <body
         className="min-h-screen antialiased font-sans"
         style={{ background: "#0A0A14", color: "#F0F0FF" }}

@@ -30,7 +30,10 @@ export default function FinalCTA() {
         See energy <span style={{ color: COLORS.purpleGlow }}>before it becomes a cost.</span>
       </h2>
       <button
-        onClick={() => navigate("/facilities")}
+        onClick={() => {
+          const facilityId = "f_001";
+          window.location.href = `http://localhost:3000/onboarding?facilityId=${facilityId}`;
+        }}
         style={{
           marginTop: 34,
           padding: "13px 28px",

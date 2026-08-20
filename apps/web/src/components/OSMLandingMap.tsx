@@ -4,28 +4,35 @@ import { useEffect, useRef, useState } from "react";
 import { MapPin, Search, Navigation, Sparkles, ArrowDown, Building, Zap, ShieldCheck, Compass, Loader2 } from "lucide-react";
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
 
-interface LocationPreset {
-  name: string; address: string; lat: number; lon: number; discom: string; facilityId: string;
+import { PRESETS, LocationPreset } from "@/data/facilityPresets";
+
+interface OSMLandingMapProps {
+  selectedFacility?: LocationPreset;
+  onSelectFacility?: (facility: LocationPreset) => void;
+  onLaunchDashboard?: (facility: LocationPreset) => void;
+  onScrollToDashboard?: () => void;
 }
 
-const PRESETS: LocationPreset[] = [
-  { name: "Bengaluru Tech Park – Phase 2",  address: "Plot 42, Electronic City Phase 1, Bengaluru, KA 560100", lat: 12.8452, lon: 77.6602, discom: "BESCOM HT-2a Industrial",     facilityId: "f_001" },
-  { name: "Whitefield Industrial Campus",   address: "EPIP Zone, Whitefield, Bengaluru, KA 560066",            lat: 12.9863, lon: 77.7376, discom: "BESCOM HT-2b Industrial",     facilityId: "f_002" },
-  { name: "Peenya Heavy Engineering Hub",   address: "Peenya Industrial Area Stage 2, Bengaluru, KA 560058",   lat: 13.0285, lon: 77.5197, discom: "BESCOM HT-1 Heavy Industrial", facilityId: "f_003" },
-  { name: "Cybercity Tech Campus",          address: "HITEC City Phase 2, Madhapur, Hyderabad, TG 500081",     lat: 17.4474, lon: 78.3762, discom: "TSSPDCL HT-2 Commercial",     facilityId: "f_004" },
-  { name: "MIDC Manufacturing Zone",        address: "Bhosari Industrial Estate, MIDC, Pune, MH 411026",       lat: 18.6298, lon: 73.7997, discom: "MSEDCL HT-1 Industrial",       facilityId: "f_005" },
-];
-
-interface OSMLandingMapProps { onScrollToDashboard: () => void; }
-
-export function OSMLandingMap({ onScrollToDashboard }: OSMLandingMapProps) {
+export function OSMLandingMap({
+  selectedFacility: propSelectedFacility,
+  onSelectFacility,
+  onLaunchDashboard,
+  onScrollToDashboard,
+}: OSMLandingMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef  = useRef<LeafletMap | null>(null);
   const markerRef       = useRef<LeafletMarker | null>(null);
 
-  const [currentLocation,  setCurrentLocation]  = useState({ lat: 12.8452, lon: 77.6602 });
-  const [selectedFacility, setSelectedFacility] = useState<LocationPreset>(PRESETS[0]);
-  const [searchQuery,      setSearchQuery]      = useState(PRESETS[0].address);
+  const [currentLocation,  setCurrentLocation]  = useState({
+    lat: propSelectedFacility?.lat || 12.8452,
+    lon: propSelectedFacility?.lon || 77.6602,
+  });
+  const [selectedFacility, setSelectedFacility] = useState<LocationPreset>(
+    propSelectedFacility || PRESETS[0]
+  );
+  const [searchQuery,      setSearchQuery]      = useState(
+    propSelectedFacility?.address || PRESETS[0].address
+  );
   const [isSearching,      setIsSearching]      = useState(false);
   const [isEvaluating,     setIsEvaluating]     = useState(false);
   const [evalProgress,     setEvalProgress]     = useState(0);
@@ -37,7 +44,12 @@ export function OSMLandingMap({ onScrollToDashboard }: OSMLandingMapProps) {
       const L = leafletModule.default || leafletModule;
       if (mapInstanceRef.current) mapInstanceRef.current.remove();
 
-      const map = L.map(mapContainerRef.current!, { center: [currentLocation.lat, currentLocation.lon], zoom: 13, zoomControl: false });
+      const map = L.map(mapContainerRef.current!, {
+        center: [currentLocation.lat, currentLocation.lon],
+        zoom: 13,
+        zoomControl: false,
+        scrollWheelZoom: false,
+      });
       // Immediately set dark bg so no white shows while tiles load
       mapContainerRef.current!.style.background = "#0A0A14";
       L.control.zoom({ position: "bottomright" }).addTo(map);
@@ -96,6 +108,7 @@ export function OSMLandingMap({ onScrollToDashboard }: OSMLandingMapProps) {
 
   const flyToLocation = (lat: number, lon: number, facility: LocationPreset) => {
     setSelectedFacility(facility);
+    if (onSelectFacility) onSelectFacility(facility);
     setSearchQuery(facility.address);
     setCurrentLocation({ lat, lon });
     if (mapInstanceRef.current && markerRef.current) {
@@ -137,7 +150,20 @@ export function OSMLandingMap({ onScrollToDashboard }: OSMLandingMapProps) {
   const handleLaunchDashboard = () => {
     setIsEvaluating(true); setEvalProgress(0);
     const iv = setInterval(() => {
-      setEvalProgress(prev => { if (prev >= 100) { clearInterval(iv); setIsEvaluating(false); onScrollToDashboard(); return 100; } return prev + 25; });
+      setEvalProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(iv);
+          setIsEvaluating(false);
+          if (onSelectFacility) onSelectFacility(selectedFacility);
+          if (onLaunchDashboard) {
+            onLaunchDashboard(selectedFacility);
+          } else {
+            document.getElementById("twin")?.scrollIntoView({ behavior: "smooth" });
+          }
+          return 100;
+        }
+        return prev + 25;
+      });
     }, 280);
   };
 
@@ -297,15 +323,20 @@ export function OSMLandingMap({ onScrollToDashboard }: OSMLandingMapProps) {
 
       {/* Scroll pill */}
       <div className="absolute bottom-5 right-1/2 translate-x-1/2 z-20">
-        <button onClick={onScrollToDashboard}
+        <button
+          onClick={() => {
+            if (onScrollToDashboard) onScrollToDashboard();
+            else document.getElementById("twin")?.scrollIntoView({ behavior: "smooth" });
+          }}
           className="flex items-center gap-2 px-5 py-2 rounded-full text-xs font-semibold shadow-xl transition-all hover:scale-105"
           style={{
             background: "rgba(22,22,31,0.90)",
             border: "1px solid rgba(139,92,246,0.25)",
             color: "var(--color-muted)",
-          }}>
+          }}
+        >
           <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: "#34D399" }} />
-          Scroll to Live Telemetry
+          Scroll to 3D Digital Twin
           <ArrowDown className="h-3.5 w-3.5" style={{ color: "#8B5CF6" }} />
         </button>
       </div>

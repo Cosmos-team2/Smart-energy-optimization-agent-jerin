@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { badgeForPhase } from "./story.js";
 import { COLORS } from "./palette.js";
 import {
@@ -144,8 +143,7 @@ function StoryBadge({ badge }) {
 }
 
 // ─── Main overlay ────────────────────────────────────────────────────────────
-export default function HeroOverlay({ phase, onOpenHowItWorks }) {
-  const navigate = useNavigate();
+export default function HeroOverlay({ phase, onOpenHowItWorks, onExplore }) {
   const badge = badgeForPhase(phase);
 
   const [exploreHover, setExploreHover] = useState(false);
@@ -271,8 +269,8 @@ export default function HeroOverlay({ phase, onOpenHowItWorks }) {
             <button
               id="hero-cta-explore"
               onClick={() => {
-                const facilityId = "f_001";
-                window.location.href = `http://localhost:3000/onboarding?facilityId=${facilityId}`;
+                if (onExplore) onExplore();
+                else document.getElementById("map")?.scrollIntoView({ behavior: "smooth" });
               }}
               onMouseEnter={() => setExploreHover(true)}
               onMouseLeave={() => setExploreHover(false)}

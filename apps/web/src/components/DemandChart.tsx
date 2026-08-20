@@ -6,9 +6,10 @@ import {
 } from "recharts";
 import { Zap, ShieldCheck, AlertTriangle } from "lucide-react";
 import { SeedDataRecord } from "@/types/contracts";
+import { SEED_DEMAND_CURVE } from "@/services/apiService";
 
 interface DemandChartProps {
-  data: SeedDataRecord[];
+  data?: SeedDataRecord[];
   activePeakKw?: number;
 }
 
@@ -50,7 +51,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-export function DemandChart({ data, activePeakKw = 777.71 }: DemandChartProps) {
+export function DemandChart({ data = SEED_DEMAND_CURVE, activePeakKw = 777.71 }: DemandChartProps) {
+  const chartData = data && data.length > 0 ? data : SEED_DEMAND_CURVE;
   return (
     <div className="card p-5 sm:p-6 flex flex-col h-full relative overflow-hidden">
       {/* Background glow */}
@@ -87,7 +89,7 @@ export function DemandChart({ data, activePeakKw = 777.71 }: DemandChartProps) {
       {/* Chart */}
       <div className="h-[300px] sm:h-[340px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="unmanagedGrad" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%"  stopColor="#F87171" stopOpacity={0.35} />

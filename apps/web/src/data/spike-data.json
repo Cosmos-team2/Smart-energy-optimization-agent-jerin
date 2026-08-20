@@ -1,0 +1,137 @@
+{
+  "source": "packages/contracts/seed/seed_facility_data.json + rec_042.json",
+  "recommendation": {
+    "id": "rec_042",
+    "type": "composite",
+    "target": ["z_hvac_3", "z_compressor_1"],
+    "actions": [
+      {
+        "action_type": "pre_cool",
+        "target_zone": "z_hvac_3",
+        "temp_delta_celsius": -1.5,
+        "time_window": "05:00-05:45 AM"
+      },
+      {
+        "action_type": "delay_start",
+        "target_equipment": "eq_comp_1",
+        "delay_minutes": 20,
+        "time_window": "06:00-06:20 AM"
+      },
+      {
+        "action_type": "soft_ramp",
+        "target_equipment": "eq_chiller_2",
+        "ramp_cap_pct": 50.0,
+        "time_window": "06:00-06:15 AM"
+      }
+    ],
+    "estimated_savings_inr": 130000.0,
+    "spike_risk_reduction_pct": 62.5,
+    "baseline_peak_kw": 777.71,
+    "optimized_peak_kw": 420.0,
+    "reasoning": "Simultaneous restart of Chiller #2 (+180 kW) and Compressor #1 (+140 kW) creates a 777.71 kW demand spike between 06:00-06:15 AM, exceeding the 500.0 kW contract limit. Staggering compressor restart to 06:20 AM and pre-cooling Zone HVAC-3 reduces peak load to 420.0 kW.",
+    "cited_rule": "demand_charge_15min_peak",
+    "confidence": 0.94,
+    "requires_approval": true,
+    "status": "proposed"
+  },
+  "timeline": [
+    {
+      "datetime": "2017-01-02T05:00:00.000",
+      "total_kw": 420.14,
+      "base_kw": 84.03,
+      "hvac_kw": 189.06,
+      "comp_kw": 147.05,
+      "is_spike_event": 0,
+      "temp_celsius": 1.2,
+      "tod_rate_inr": 6.5
+    },
+    {
+      "datetime": "2017-01-02T05:15:00.000",
+      "total_kw": 427.64,
+      "base_kw": 85.53,
+      "hvac_kw": 192.44,
+      "comp_kw": 149.67,
+      "is_spike_event": 0,
+      "temp_celsius": 1.1,
+      "tod_rate_inr": 6.5
+    },
+    {
+      "datetime": "2017-01-02T05:30:00.000",
+      "total_kw": 436.49,
+      "base_kw": 87.3,
+      "hvac_kw": 196.42,
+      "comp_kw": 152.77,
+      "is_spike_event": 0,
+      "temp_celsius": 1.0,
+      "tod_rate_inr": 6.5
+    },
+    {
+      "datetime": "2017-01-02T05:45:00.000",
+      "total_kw": 446.57,
+      "base_kw": 89.31,
+      "hvac_kw": 200.96,
+      "comp_kw": 156.3,
+      "is_spike_event": 0,
+      "temp_celsius": 1.0,
+      "tod_rate_inr": 6.5
+    },
+    {
+      "datetime": "2017-01-02T06:00:00.000",
+      "total_kw": 777.71,
+      "base_kw": 91.54,
+      "hvac_kw": 385.97,
+      "comp_kw": 300.2,
+      "is_spike_event": 1,
+      "temp_celsius": 0.9,
+      "tod_rate_inr": 8.0
+    },
+    {
+      "datetime": "2017-01-02T06:15:00.000",
+      "total_kw": 469.74,
+      "base_kw": 93.95,
+      "hvac_kw": 211.38,
+      "comp_kw": 164.41,
+      "is_spike_event": 0,
+      "temp_celsius": 1.0,
+      "tod_rate_inr": 8.0
+    },
+    {
+      "datetime": "2017-01-02T06:30:00.000",
+      "total_kw": 482.2,
+      "base_kw": 96.44,
+      "hvac_kw": 216.99,
+      "comp_kw": 168.77,
+      "is_spike_event": 0,
+      "temp_celsius": 1.0,
+      "tod_rate_inr": 8.0
+    },
+    {
+      "datetime": "2017-01-02T06:45:00.000",
+      "total_kw": 494.54,
+      "base_kw": 98.91,
+      "hvac_kw": 222.54,
+      "comp_kw": 173.09,
+      "is_spike_event": 0,
+      "temp_celsius": 1.0,
+      "tod_rate_inr": 8.0
+    }
+  ],
+  "all_spike_events": [
+    { "datetime": "2017-01-02T06:00:00.000", "total_kw": 777.71 },
+    { "datetime": "2017-01-02T14:00:00.000", "total_kw": 885.14 },
+    { "datetime": "2017-01-03T06:00:00.000", "total_kw": 836.25 },
+    { "datetime": "2017-01-03T14:00:00.000", "total_kw": 934.75 },
+    { "datetime": "2017-01-04T06:00:00.000", "total_kw": 819.29 },
+    { "datetime": "2017-01-04T14:00:00.000", "total_kw": 818.6 },
+    { "datetime": "2017-01-05T06:00:00.000", "total_kw": 991.56 },
+    { "datetime": "2017-01-05T14:00:00.000", "total_kw": 1002.71 },
+    { "datetime": "2017-01-06T06:00:00.000", "total_kw": 996.18 },
+    { "datetime": "2017-01-06T14:00:00.000", "total_kw": 997.49 },
+    { "datetime": "2017-01-09T06:00:00.000", "total_kw": 1241.05 },
+    { "datetime": "2017-01-09T14:00:00.000", "total_kw": 1171.16 },
+    { "datetime": "2017-01-10T06:00:00.000", "total_kw": 1202.95 },
+    { "datetime": "2017-01-10T14:00:00.000", "total_kw": 1114.58 },
+    { "datetime": "2017-01-11T06:00:00.000", "total_kw": 938.26 }
+  ],
+  "demand_charge_rate_inr": 500.0
+}

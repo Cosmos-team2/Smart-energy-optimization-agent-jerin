@@ -1,7 +1,10 @@
+"use client";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+import { ArrowDown, Sparkles, Radio } from "lucide-react";
 
 import Floor from "./scene/Floor.jsx";
 import PowerNode from "./scene/PowerNode.jsx";
@@ -34,12 +37,6 @@ import {
   SPIKE_INDEX,
 } from "./data/optimization.js";
 
-// Scripted replay for the "Simulate Recommendation" button. Every `index`
-// here points at a REAL timeline slot (0-7, same 8 real timestamps used by
-// the slider). `mode` picks baseline vs. optimized data for that slot.
-// Badges/tints are presentation-only labels naming which rec_042 action is
-// in effect — they don't change any kW number, only which dataset/slot is
-// shown and when.
 const SIMULATION_STEPS = [
   { index: 0, mode: "baseline", label: "Replaying real timeline from 05:00…", holdMs: 500 },
   { index: 1, mode: "baseline", holdMs: 450 },
@@ -81,30 +78,34 @@ const SIMULATION_STEPS = [
   },
 ];
 
-function labelForStep(stepIdx) {
+function labelForStep(stepIdx: number) {
   for (let j = stepIdx; j >= 0; j--) {
-    if (SIMULATION_STEPS[j].label) return SIMULATION_STEPS[j].label;
+    if (SIMULATION_STEPS[j]?.label) return SIMULATION_STEPS[j].label;
   }
   return "";
 }
 
-function staticHvacBadge(mode, index) {
+function staticHvacBadge(mode: string, index: number) {
   if (mode !== "optimized") return null;
   if (index <= 3) return { text: "PRE-COOLING", color: "#7ec8ff" };
   if (index === SPIKE_INDEX) return { text: "SOFT RAMP", color: "#ffb84d" };
   return null;
 }
 
-function staticCompBadge(mode, index) {
+function staticCompBadge(mode: string, index: number) {
   if (mode !== "optimized") return null;
-  if (index === SPIKE_INDEX || index === SPIKE_INDEX + 1) return { text: "DELAYED → 06:20", color: "#5a6472" };
+  if (index === SPIKE_INDEX || index === SPIKE_INDEX + 1)
+    return { text: "DELAYED → 06:20", color: "#5a6472" };
   return null;
 }
 
-// Smoothly pans/dollies the OrbitControls target toward a selected zone
-// without ever teleporting — nudges target + camera distance a little each
-// frame, preserving the user's current azimuth/polar angle.
-function CameraFocus({ controlsRef, focusPosition }) {
+function CameraFocus({
+  controlsRef,
+  focusPosition,
+}: {
+  controlsRef: React.MutableRefObject<any>;
+  focusPosition: [number, number, number] | null;
+}) {
   const targetVec = useRef(new THREE.Vector3());
 
   useFrame(() => {
@@ -125,51 +126,42 @@ function CameraFocus({ controlsRef, focusPosition }) {
   return null;
 }
 
-export default function DigitalTwin() {
-  // Read URL search params with localStorage persistence fallback
-  const facilityContext = useMemo(() => {
-    if (typeof window === "undefined") {
-      return { facilityId: "f_001", lat: 12.8452, lon: 77.6602, discom: "BESCOM HT-2a Industrial" };
-    }
-    const searchParams = new URLSearchParams(window.location.search);
-    const urlFacilityId = searchParams.get("facilityId");
-    const urlLat = searchParams.get("lat");
-    const urlLon = searchParams.get("lon");
-    const urlDiscom = searchParams.get("discom");
+export interface DigitalTwinSectionProps {
+  facility?: {
+    facilityId: string;
+    name: string;
+    address: string;
+    lat: number;
+    lon: number;
+    discom: string;
+  };
+  onScrollToDashboard?: () => void;
+}
 
-    const facilityId = urlFacilityId || localStorage.getItem("optigrid_facilityId") || "f_001";
-    const lat = parseFloat(urlLat || localStorage.getItem("optigrid_lat") || "12.8452");
-    const lon = parseFloat(urlLon || localStorage.getItem("optigrid_lon") || "77.6602");
-    const discom = urlDiscom || localStorage.getItem("optigrid_discom") || "BESCOM HT-2a Industrial";
-
-    // Persist to localStorage for page refresh resilience
-    try {
-      if (urlFacilityId) localStorage.setItem("optigrid_facilityId", urlFacilityId);
-      if (urlLat) localStorage.setItem("optigrid_lat", String(urlLat));
-      if (urlLon) localStorage.setItem("optigrid_lon", String(urlLon));
-      if (urlDiscom) localStorage.setItem("optigrid_discom", urlDiscom);
-    } catch {
-      // In case localStorage is disabled/restricted
-    }
-
-    return { facilityId, lat, lon, discom };
-  }, []);
-
-  const [mode, setMode] = useState("baseline");
+export function DigitalTwinSection({
+  facility = {
+    facilityId: "f_001",
+    name: "Bengaluru Tech Park – Phase 2",
+    address: "Plot 42, Electronic City Phase 1, Bengaluru, KA 560100",
+    lat: 12.8452,
+    lon: 77.6602,
+    discom: "BESCOM HT-2a Industrial",
+  },
+  onScrollToDashboard,
+}: DigitalTwinSectionProps) {
+  const [mode, setMode] = useState<"baseline" | "optimized">("baseline");
   const [index, setIndex] = useState(0);
   const [simulating, setSimulating] = useState(false);
   const [simStepIdx, setSimStepIdx] = useState(-1);
-  // Local UI state only — PENDING | APPROVED | REJECTED. No API call is
-  // made; there's no real approval endpoint yet, so nothing is persisted.
-  const [approvalStatus, setApprovalStatus] = useState("PENDING");
-  const [selectedZoneId, setSelectedZoneId] = useState(null);
-  const [viewMode, setViewMode] = useState("cutaway");
+  const [approvalStatus, setApprovalStatus] = useState<"PENDING" | "APPROVED" | "REJECTED">(
+    "PENDING"
+  );
+  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"exterior" | "cutaway" | "floorplan">("cutaway");
   const [recOpen, setRecOpen] = useState(false);
-  const timeoutRef = useRef(null);
-  const controlsRef = useRef();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsRef = useRef<any>();
 
-  // Per-channel max across the real BASELINE timeline — used only to scale
-  // equipment block height/particle rate consistently across both modes.
   const maxByKey = useMemo(() => {
     const maxes = { base_kw: 0, hvac_kw: 0, comp_kw: 0 };
     BASELINE_TIMELINE.forEach((t) => {
@@ -188,13 +180,13 @@ export default function DigitalTwin() {
       return undefined;
     }
     const step = SIMULATION_STEPS[simStepIdx];
-    setMode(step.mode);
+    setMode(step.mode as "baseline" | "optimized");
     setIndex(step.index);
     timeoutRef.current = setTimeout(() => setSimStepIdx((i) => i + 1), step.holdMs);
-    return () => clearTimeout(timeoutRef.current);
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [simulating, simStepIdx]);
-
-  useEffect(() => () => clearTimeout(timeoutRef.current), []);
 
   const startSimulation = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -202,16 +194,16 @@ export default function DigitalTwin() {
     setSimStepIdx(0);
   };
 
-  const handleIndexChange = (i) => {
+  const handleIndexChange = (i: number) => {
     if (simulating) {
-      clearTimeout(timeoutRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setSimulating(false);
       setSimStepIdx(-1);
     }
     setIndex(i);
   };
 
-  const handleModeChange = (m) => {
+  const handleModeChange = (m: "baseline" | "optimized") => {
     if (simulating) return;
     setMode(m);
   };
@@ -222,10 +214,6 @@ export default function DigitalTwin() {
     setSimStepIdx(-1);
   };
 
-  // Approve/reject are local UI state transitions only (requirement: no
-  // fake API call). Both force the twin to the timeline slot where the
-  // difference is visible (the spike slot) so the decision's effect is
-  // immediately obvious, then leave the timeline free to scrub from there.
   const handleApprove = () => {
     if (approvalStatus !== "PENDING") return;
     cancelSimulation();
@@ -244,11 +232,21 @@ export default function DigitalTwin() {
     setRecOpen(false);
   };
 
-  const activeStep = simulating && simStepIdx >= 0 && simStepIdx < SIMULATION_STEPS.length ? SIMULATION_STEPS[simStepIdx] : null;
-  const simLabel = simulating && simStepIdx >= 0 ? labelForStep(Math.min(simStepIdx, SIMULATION_STEPS.length - 1)) : "";
+  const activeStep =
+    simulating && simStepIdx >= 0 && simStepIdx < SIMULATION_STEPS.length
+      ? SIMULATION_STEPS[simStepIdx]
+      : null;
+  const simLabel =
+    simulating && simStepIdx >= 0
+      ? labelForStep(Math.min(simStepIdx, SIMULATION_STEPS.length - 1))
+      : "";
 
-  const hvacBadge = simulating ? activeStep?.hvacBadge || null : staticHvacBadge(mode, index);
-  const compBadge = simulating ? activeStep?.compBadge || null : staticCompBadge(mode, index);
+  const hvacBadge = simulating
+    ? (activeStep as any)?.hvacBadge || null
+    : staticHvacBadge(mode, index);
+  const compBadge = simulating
+    ? (activeStep as any)?.compBadge || null
+    : staticCompBadge(mode, index);
   const hvacTint = hvacBadge?.color || null;
   const compTint = compBadge?.color || null;
 
@@ -260,19 +258,33 @@ export default function DigitalTwin() {
 
   const showGhosts = mode === "optimized" && index === SPIKE_INDEX;
 
-  const zoneMetrics = (zone) => {
-    const value = current[zone.dataKey];
-    const ratio = value / maxByKey[zone.dataKey];
+  const zoneMetrics = (zone: any) => {
+    const value = (current as any)[zone.dataKey];
+    const ratio = value / (maxByKey as any)[zone.dataKey];
     const spike = current.is_spike_event === 1 && REC_042_TARGET_ZONES.includes(zone.id);
     return { value, ratio, spike };
   };
 
   const selectedZone = ZONES.find((z) => z.id === selectedZoneId) || null;
   const selectedMetrics = selectedZone ? zoneMetrics(selectedZone) : null;
-  const focusPosition = selectedZone ? selectedZone.position : null;
+  const focusPosition = selectedZone
+    ? (selectedZone.position as [number, number, number])
+    : null;
+
+  const handleScrollDown = () => {
+    if (onScrollToDashboard) {
+      onScrollToDashboard();
+    } else {
+      document.getElementById("dashboard")?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
   return (
-    <div style={{ position: "fixed", inset: 0, width: "100%", height: "100%", background: COLORS.bg, overflow: "hidden" }}>
+    <div
+      id="twin"
+      className="relative w-full h-screen overflow-hidden"
+      style={{ background: COLORS.bg }}
+    >
       <Canvas
         style={{ width: "100%", height: "100%" }}
         camera={{ position: [12, 9.2, 25], fov: 40 }}
@@ -281,33 +293,53 @@ export default function DigitalTwin() {
         <color attach="background" args={[COLORS.bg]} />
         <fog attach="fog" args={[COLORS.fog, 24, 48]} />
 
-        {/* ambient fill so geometry never reads as a black silhouette */}
         <ambientLight intensity={0.9} />
-        {/* large soft key light, warm-neutral */}
         <directionalLight position={[9, 16, 8]} intensity={1.6} color="#efeaff" />
-        {/* purple rim light from behind/above the facility */}
         <directionalLight position={[-10, 9, -12]} intensity={0.85} color={COLORS.purple} />
-        {/* cyan fill from the front-low, picks up equipment detail */}
-        <pointLight position={[0, 4, 11]} intensity={0.85} color={COLORS.energyCyan} distance={28} />
+        <pointLight
+          position={[0, 4, 11]}
+          intensity={0.85}
+          color={COLORS.energyCyan}
+          distance={28}
+        />
         <hemisphereLight args={[COLORS.purpleGlow, "#1c1830", 0.6]} />
 
         <Floor />
         <PowerNode position={POWER_NODE_POSITION} loadRatio={loadRatio} />
         <Architecture viewMode={viewMode} />
 
-        {/* trunk feed: grid -> electrical room */}
-        <EnergyFlow start={POWER_NODE_POSITION} end={ELECTRICAL_ROOM_POSITION} ratio={loadRatio} spike={current.is_spike_event === 1} />
+        <EnergyFlow
+          start={POWER_NODE_POSITION}
+          end={ELECTRICAL_ROOM_POSITION}
+          ratio={loadRatio}
+          spike={current.is_spike_event === 1}
+        />
 
         {ZONES.map((zone) => {
           const { value, ratio, spike } = zoneMetrics(zone);
 
-          const baselineValue = BASELINE_TIMELINE[index][zone.dataKey];
-          const ghostActive = showGhosts && REC_042_TARGET_ZONES.includes(zone.id) && baselineValue !== value;
-          const ghostRatio = ghostActive ? baselineValue / maxByKey[zone.dataKey] : null;
+          const baselineValue = (BASELINE_TIMELINE[index] as any)[zone.dataKey];
+          const ghostActive =
+            showGhosts &&
+            REC_042_TARGET_ZONES.includes(zone.id) &&
+            baselineValue !== value;
+          const ghostRatio = ghostActive
+            ? baselineValue / (maxByKey as any)[zone.dataKey]
+            : null;
           const ghostValue = ghostActive ? baselineValue : null;
 
-          const statusBadge = zone.kind === "hvac" ? hvacBadge : zone.kind === "compressor" ? compBadge : null;
-          const tintColor = zone.kind === "hvac" ? hvacTint : zone.kind === "compressor" ? compTint : null;
+          const statusBadge =
+            zone.kind === "hvac"
+              ? hvacBadge
+              : zone.kind === "compressor"
+              ? compBadge
+              : null;
+          const tintColor =
+            zone.kind === "hvac"
+              ? hvacTint
+              : zone.kind === "compressor"
+              ? compTint
+              : null;
 
           return (
             <group key={zone.id}>
@@ -324,7 +356,12 @@ export default function DigitalTwin() {
                 dimmed={selectedZoneId != null && selectedZoneId !== zone.id}
                 onSelect={setSelectedZoneId}
               />
-              <EnergyFlow start={ELECTRICAL_ROOM_POSITION} end={zone.position} ratio={ratio} spike={spike} />
+              <EnergyFlow
+                start={ELECTRICAL_ROOM_POSITION}
+                end={zone.position}
+                ratio={ratio}
+                spike={spike}
+              />
             </group>
           );
         })}
@@ -340,27 +377,44 @@ export default function DigitalTwin() {
           maxAzimuthAngle={Math.PI / 1.8}
           enableDamping
           dampingFactor={0.08}
+          enableZoom={false}
         />
         <CameraFocus controlsRef={controlsRef} focusPosition={focusPosition} />
       </Canvas>
 
-      {/* facility identity — subtle top-center brand/status element */}
+      {/* Facility identity header */}
       <div
         style={{
           position: "absolute",
-          top: 16,
+          top: 18,
           left: "50%",
           transform: "translateX(-50%)",
           textAlign: "center",
           fontFamily: "'Segoe UI', system-ui, sans-serif",
           pointerEvents: "none",
+          zIndex: 20,
         }}
       >
-        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 2, color: COLORS.white }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: 2,
+            color: COLORS.white,
+          }}
+        >
           OPTIGRID <span style={{ color: COLORS.purpleGlow }}>/</span> DIGITAL TWIN
         </div>
-        <div style={{ fontSize: 9.5, letterSpacing: 1, color: COLORS.textDim, marginTop: 2, textTransform: "uppercase" }}>
-          Facility {facilityContext.facilityId} · {facilityContext.discom} ·{" "}
+        <div
+          style={{
+            fontSize: 9.5,
+            letterSpacing: 1,
+            color: COLORS.textDim,
+            marginTop: 2,
+            textTransform: "uppercase",
+          }}
+        >
+          Facility {facility.facilityId} · {facility.discom} ·{" "}
           <span style={{ color: COLORS.energyCyan }}>● LIVE</span>
         </div>
       </div>
@@ -369,19 +423,25 @@ export default function DigitalTwin() {
         <div
           style={{
             position: "absolute",
-            top: 52,
+            top: 54,
             left: "50%",
             transform: "translateX(-50%)",
             padding: "6px 16px",
             borderRadius: 999,
-            background: approvalStatus === "APPROVED" ? "rgba(103,232,249,0.12)" : "rgba(139,152,165,0.12)",
-            border: `1px solid ${approvalStatus === "APPROVED" ? COLORS.energyCyan : "#8b98a5"}`,
+            background:
+              approvalStatus === "APPROVED"
+                ? "rgba(103,232,249,0.12)"
+                : "rgba(139,152,165,0.12)",
+            border: `1px solid ${
+              approvalStatus === "APPROVED" ? COLORS.energyCyan : "#8b98a5"
+            }`,
             color: approvalStatus === "APPROVED" ? COLORS.energyCyan : "#c8d0d8",
             fontFamily: "'Segoe UI', system-ui, sans-serif",
             fontSize: 11.5,
             fontWeight: 700,
             letterSpacing: 0.4,
             pointerEvents: "none",
+            zIndex: 20,
           }}
         >
           {approvalStatus === "APPROVED"
@@ -390,7 +450,13 @@ export default function DigitalTwin() {
         </div>
       )}
 
-      <Hud current={current} contractLimit={CONTRACT_LIMIT_KW} peakRiskPct={peakRiskPct} mode={mode} />
+      {/* Floating interactive HUD modules */}
+      <Hud
+        current={current}
+        contractLimit={CONTRACT_LIMIT_KW}
+        peakRiskPct={peakRiskPct}
+        mode={mode}
+      />
       <ModePanel
         mode={mode}
         onModeChange={handleModeChange}
@@ -408,7 +474,11 @@ export default function DigitalTwin() {
         onClose={() => setSelectedZoneId(null)}
       />
 
-      <RecommendationBadge recommendation={RECOMMENDATION} approvalStatus={approvalStatus} onOpen={() => setRecOpen(true)} />
+      <RecommendationBadge
+        recommendation={RECOMMENDATION}
+        approvalStatus={approvalStatus}
+        onOpen={() => setRecOpen(true)}
+      />
       {recOpen && (
         <RecommendationDrawer
           recommendation={RECOMMENDATION}
@@ -423,7 +493,24 @@ export default function DigitalTwin() {
         />
       )}
 
-      <TimeSlider timeline={BASELINE_TIMELINE} index={index} onChange={handleIndexChange} />
+      <TimeSlider
+        timeline={BASELINE_TIMELINE}
+        index={index}
+        onChange={handleIndexChange}
+      />
+
+      {/* Transition indicator: scroll to telemetry dashboard */}
+      <div className="absolute bottom-6 right-6 z-30 pointer-events-auto">
+        <button
+          onClick={handleScrollDown}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl transition-all hover:scale-105 border border-purple-500/40 bg-slate-950/80 backdrop-blur-md text-purple-300 hover:text-white hover:border-purple-400"
+        >
+          <span>Scroll to Live Telemetry Dashboard</span>
+          <ArrowDown className="h-3.5 w-3.5 animate-bounce text-purple-400" />
+        </button>
+      </div>
     </div>
   );
 }
+
+export default DigitalTwinSection;
