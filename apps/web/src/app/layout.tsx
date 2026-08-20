@@ -6,6 +6,7 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
+  fallback: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
 });
 
 const manrope = Manrope({
@@ -13,6 +14,7 @@ const manrope = Manrope({
   variable: "--font-manrope",
   weight: ["500", "600", "700", "800"],
   display: "swap",
+  fallback: ["system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
 });
 
 export const metadata: Metadata = {
