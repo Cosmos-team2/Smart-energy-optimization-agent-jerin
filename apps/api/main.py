@@ -12,8 +12,14 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Add repository root to python path to resolve packages.contracts.models across child processes
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# Robust REPO_ROOT resolution for Render / Docker / local execution
+current_dir = Path(__file__).resolve().parent
+REPO_ROOT = current_dir
+for candidate in [current_dir, current_dir.parent, current_dir.parent.parent, current_dir.parent.parent.parent]:
+    if (candidate / "packages").exists() or (candidate / "Model").exists() or (candidate / "requirements.txt").exists():
+        REPO_ROOT = candidate
+        break
+
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
