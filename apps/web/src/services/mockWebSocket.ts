@@ -17,7 +17,11 @@ export class TelemetryWebSocketClient {
   private isDisconnecting = false;
   private currentIndex = 7; // Start near the 06:00 AM spike event
 
-  constructor(private url: string = "ws://127.0.0.1:8000/ws/telemetry") {}
+  constructor(
+    private url: string = process.env.NEXT_PUBLIC_API_URL
+      ? process.env.NEXT_PUBLIC_API_URL.replace(/^http/, "ws") + "/ws/telemetry"
+      : "ws://127.0.0.1:8000/ws/telemetry"
+  ) {}
 
   public connect() {
     if (typeof window === "undefined") return;
