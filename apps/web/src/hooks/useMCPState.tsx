@@ -47,17 +47,17 @@ const MCPStateContext = createContext<MCPStateContextValue>({
   updateMCPState: () => {},
 });
 
-export function MCPStateProvider({ children }: { children: React.ReactNode }): React.ReactElement {
+export function MCPStateProvider({ children }: { children: React.ReactNode }) {
   const [mcpState, setMcpState] = useState<MCPState>(DEFAULT_STATE);
 
   const updateMCPState = useCallback((patch: Partial<MCPState>) => {
     setMcpState((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  return (
-    <MCPStateContext.Provider value={{ mcpState, updateMCPState }}>
-      {children}
-    </MCPStateContext.Provider>
+  return React.createElement(
+    MCPStateContext.Provider,
+    { value: { mcpState, updateMCPState } },
+    children
   );
 }
 
