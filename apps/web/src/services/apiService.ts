@@ -358,17 +358,15 @@ export const apiService = {
   },
 
   /**
-   * 7. MCP Context Data (Weather & Solar) wrapped in MCPEnvelope
+   * 7. Live Weather Context via Open-Meteo (GET /api/mcp/weather)
+   *    No API key required. Returns real current conditions for the facility location.
    */
   async getWeatherMCPContext(): Promise<MCPEnvelope<WeatherMCPPayload>> {
+    const lat = 12.8452; // Electronic City Phase 1, Bengaluru
+    const lon = 77.6602;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/mcp/envelope`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "open-meteo",
-          payload: { temp_celsius: 34.8, humidity_pct: 58.0 },
-        }),
+      const res = await fetch(`${API_BASE_URL}/api/mcp/weather?lat=${lat}&lon=${lon}`, {
+        cache: "no-store",
       });
       if (res.ok) {
         return await res.json();
