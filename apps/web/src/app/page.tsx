@@ -94,7 +94,6 @@ function HomeContent() {
   const [activeSection, setActiveSection] = useState<string>("hero");
   const [selectedFacility, setSelectedFacility] = useState<LocationPreset>(PRESETS[0]);
 
-  const telemetry = useTelemetryStream();
   const heroRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const twinRef = useRef<HTMLDivElement>(null);
@@ -175,26 +174,21 @@ function HomeContent() {
   };
 
   // Live WebSocket telemetry stream
-  const { readings, liveKpi, isConnected } = useTelemetryStream({
-    facilityId: "f_001",
-    zoneId: "z_hvac_3",
-  });
-
-  const latestReading = readings.length > 0 ? readings[readings.length - 1] : null;
+  const stream = useTelemetryStream();
 
   const telemetry = {
-    currentTotalKw: latestReading?.total_kw ?? liveKpi.total_kw,
-    baselineKw: latestReading?.base_kw ?? liveKpi.base_kw,
-    hvacKw: latestReading?.hvac_kw ?? liveKpi.hvac_kw,
-    compKw: latestReading?.comp_kw ?? liveKpi.comp_kw,
+    currentTotalKw: stream.latestReading?.total_kw ?? stream.currentPeakKw,
+    baselineKw: stream.latestReading?.base_kw ?? 0,
+    hvacKw: stream.latestReading?.hvac_kw ?? 0,
+    compKw: stream.latestReading?.comp_kw ?? 0,
     liveSavingsInr: recommendation.estimated_savings_inr,
     contractLimitKw: 500,
-    isSpike: (latestReading?.is_spike_event ?? 0) === 1,
-    spikeRiskPct: 75,
-    trendData: [],
-    alerts: [],
-    isConnected: isConnected,
-    currentPeakKw: 0,
+    isSpike: (stream.latestReading?.is_spike_event ?? 0) === 1,
+    spikeRiskPct: stream.spikeRiskPct,
+    trendData: stream.trendData,
+    alerts: stream.alerts,
+    isConnected: stream.isConnected,
+    currentPeakKw: stream.currentPeakKw,
   };
 
   const isApproved = recommendation.status === "approved" || recommendation.status === "executed";
@@ -353,7 +347,6 @@ function HomeContent() {
                 Chiller #2 and Compressor #1 restart exceeds 500 kW contract limit. Stagger plan reduces peak to 420.0 kW.
               </p>
             </div>
-          </div>
           <button
             onClick={scrollToApproval}
             className="btn-ghost flex items-center justify-center gap-1.5 text-xs py-2 px-3.5 self-start sm:self-auto font-medium"

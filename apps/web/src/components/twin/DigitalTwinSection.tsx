@@ -281,7 +281,7 @@ export function DigitalTwinSection({
   const simFaultOverlay = activeStep?.faultOverlay || null;
 
   const hvacBadge = activeStep?.hvacBadge || staticHvacBadge(mode, index);
-  const compBadge = activeStep?.compBadge || staticCompBadge(mode, index);
+  const compBadge = (activeStep as any)?.compBadge || staticCompBadge(mode, index);
   const hvacTint = hvacBadge?.color || null;
   const compTint = compBadge?.color || null;
 
