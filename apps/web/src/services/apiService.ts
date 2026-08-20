@@ -317,4 +317,28 @@ export const apiService = {
     }
     return createMockWeatherEnvelope();
   },
+
+  /**
+   * 8. AI Copilot (POST /api/copilot)
+   */
+  async askCopilot(question: string, state?: any): Promise<{ answer: string; intent_routed: boolean }> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/copilot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, state }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      console.warn(`[apiService] askCopilot backend returned ${res.status}, falling back to local Copilot explanation`);
+    } catch (err) {
+      console.warn(`[apiService] askCopilot backend offline, falling back to local Copilot explanation:`, err);
+    }
+    // Grounded fallback response for demo continuity
+    return {
+      answer: `Based on recommendation rec_042 for Bengaluru Tech Park - Phase 2: Simultaneous start of Centrifugal Chiller #2 (+180 kW) and Screw Air Compressor #1 (+140 kW) at 06:00 AM created a 777.71 kW peak demand spike, exceeding the 500.0 kW BESCOM contract demand limit. Staggering compressor startup to 06:20 AM and pre-cooling Zone 3 by 1.5°C limits peak load to 420.0 kW, saving ₹1,30,000/month under BESCOM rule demand_charge_15min_peak.`,
+      intent_routed: false,
+    };
+  },
 };

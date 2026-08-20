@@ -29,6 +29,7 @@ import { apiService, CANONICAL_REC_042 } from "@/services/apiService";
 import { RecommendationObject } from "@/types/contracts";
 import { NavBar } from "@/components/Navbar";
 import { PRESETS, LocationPreset } from "@/data/facilityPresets";
+import { AICopilotDrawer } from "@/components/AICopilotDrawer";
 
 // Dynamically load 3D Hero Scene (Client-Side Only)
 const Hero3DSection = dynamic(
@@ -677,6 +678,9 @@ export default function SinglePageApp() {
           </div>
         </div>
       </section>
+
+      {/* Floating AI Copilot Widget & Drawer */}
+      <AICopilotDrawer />
     </div>
   );
 }
