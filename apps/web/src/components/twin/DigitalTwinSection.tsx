@@ -126,6 +126,33 @@ function CameraFocus({
   return null;
 }
 
+import { useMCPState, ScenarioKey } from "@/hooks/useMCPState";
+import {
+  SCENARIO_SIMULTANEOUS_SPIKE,
+  buildDemandBreachSteps,
+  SCENARIO_COMPRESSOR_FAULT,
+  buildHVACThermalSteps,
+  buildStaggerSteps,
+  SCENARIO_META,
+} from "./data/faultScenarios.js";
+
+function getStepsForScenario(scenario: ScenarioKey, mcpState: any) {
+  switch (scenario) {
+    case "simultaneous_spike":
+      return SCENARIO_SIMULTANEOUS_SPIKE;
+    case "demand_breach":
+      return buildDemandBreachSteps(mcpState.contractLimitKw, mcpState.monthlySavingsInr);
+    case "compressor_fault":
+      return SCENARIO_COMPRESSOR_FAULT;
+    case "hvac_thermal":
+      return buildHVACThermalSteps(mcpState.ambientTempC, mcpState.heatwaveFlag);
+    case "stagger_applied":
+      return buildStaggerSteps(mcpState);
+    default:
+      return SCENARIO_SIMULTANEOUS_SPIKE;
+  }
+}
+
 export interface DigitalTwinSectionProps {
   facility?: {
     facilityId: string;
@@ -149,6 +176,8 @@ export function DigitalTwinSection({
   },
   onScrollToDashboard,
 }: DigitalTwinSectionProps) {
+  const { mcpState } = useMCPState();
+  const [activeScenario, setActiveScenario] = useState<ScenarioKey>("simultaneous_spike");
   const [mode, setMode] = useState<"baseline" | "optimized">("baseline");
   const [index, setIndex] = useState(0);
   const [simulating, setSimulating] = useState(false);
@@ -162,6 +191,18 @@ export function DigitalTwinSection({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const controlsRef = useRef<any>();
 
+  // Auto-sync scenario when MCP runs
+  useEffect(() => {
+    if (mcpState.hasRunMCP && mcpState.activeScenario) {
+      setActiveScenario(mcpState.activeScenario);
+    }
+  }, [mcpState.hasRunMCP, mcpState.activeScenario, mcpState.lastRunTimestamp]);
+
+  const currentScenarioSteps = useMemo(
+    () => getStepsForScenario(activeScenario, mcpState),
+    [activeScenario, mcpState]
+  );
+
   const maxByKey = useMemo(() => {
     const maxes = { base_kw: 0, hvac_kw: 0, comp_kw: 0 };
     BASELINE_TIMELINE.forEach((t) => {
@@ -174,19 +215,19 @@ export function DigitalTwinSection({
 
   useEffect(() => {
     if (!simulating || simStepIdx < 0) return undefined;
-    if (simStepIdx >= SIMULATION_STEPS.length) {
+    if (simStepIdx >= currentScenarioSteps.length) {
       setSimulating(false);
       setSimStepIdx(-1);
       return undefined;
     }
-    const step = SIMULATION_STEPS[simStepIdx];
+    const step = currentScenarioSteps[simStepIdx];
     setMode(step.mode as "baseline" | "optimized");
     setIndex(step.index);
     timeoutRef.current = setTimeout(() => setSimStepIdx((i) => i + 1), step.holdMs);
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [simulating, simStepIdx]);
+  }, [simulating, simStepIdx, currentScenarioSteps]);
 
   const startSimulation = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -233,27 +274,22 @@ export function DigitalTwinSection({
   };
 
   const activeStep =
-    simulating && simStepIdx >= 0 && simStepIdx < SIMULATION_STEPS.length
-      ? SIMULATION_STEPS[simStepIdx]
+    simulating && simStepIdx >= 0 && simStepIdx < currentScenarioSteps.length
+      ? currentScenarioSteps[simStepIdx]
       : null;
-  const simLabel =
-    simulating && simStepIdx >= 0
-      ? labelForStep(Math.min(simStepIdx, SIMULATION_STEPS.length - 1))
-      : "";
+  const simLabel = activeStep?.label || "";
+  const simFaultOverlay = activeStep?.faultOverlay || null;
 
-  const hvacBadge = simulating
-    ? (activeStep as any)?.hvacBadge || null
-    : staticHvacBadge(mode, index);
-  const compBadge = simulating
-    ? (activeStep as any)?.compBadge || null
-    : staticCompBadge(mode, index);
+  const hvacBadge = activeStep?.hvacBadge || staticHvacBadge(mode, index);
+  const compBadge = activeStep?.compBadge || staticCompBadge(mode, index);
   const hvacTint = hvacBadge?.color || null;
   const compTint = compBadge?.color || null;
 
   const activeTimeline = mode === "optimized" ? OPTIMIZED_TIMELINE : BASELINE_TIMELINE;
   const current = activeTimeline[index];
 
-  const loadRatio = current.total_kw / CONTRACT_LIMIT_KW;
+  const effectiveLimit = mcpState.contractLimitKw || CONTRACT_LIMIT_KW;
+  const loadRatio = current.total_kw / effectiveLimit;
   const peakRiskPct = Math.round(loadRatio * 100);
 
   const showGhosts = mode === "optimized" && index === SPIKE_INDEX;
@@ -475,16 +511,20 @@ export function DigitalTwinSection({
       {/* Floating interactive HUD modules */}
       <Hud
         current={current}
-        contractLimit={CONTRACT_LIMIT_KW}
+        contractLimit={effectiveLimit}
         peakRiskPct={peakRiskPct}
         mode={mode}
+        activeScenario={activeScenario}
+        mcpState={mcpState}
       />
       <ModePanel
-        mode={mode}
-        onModeChange={handleModeChange}
+        activeScenario={activeScenario}
+        onScenarioChange={setActiveScenario}
         onSimulate={startSimulation}
         simulating={simulating}
         simLabel={simLabel}
+        simFaultOverlay={simFaultOverlay}
+        mcpActiveScenario={mcpState.hasRunMCP ? mcpState.activeScenario : null}
       />
       <FacilityViewControl viewMode={viewMode} onChange={setViewMode} />
       <Inspector

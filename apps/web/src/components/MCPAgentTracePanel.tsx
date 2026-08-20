@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { RecommendationObject } from "@/types/contracts";
 
+import { useMCPState, inferScenario } from "@/hooks/useMCPState";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface MCPAgentTracePanelProps {
@@ -43,6 +45,7 @@ const BASELINE_SPIKE_KW = 777.71; // Seed dataset peak reading at 06:00 AM
 const TOD_MULTIPLIER = 1.15; // ToD 06:00–10:00 AM window factor
 
 export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePanelProps) {
+  const { updateMCPState } = useMCPState();
   const [contractLimit, setContractLimit] = useState<number>(500);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [liveReasoning, setLiveReasoning] = useState<string | null>(null);
@@ -391,6 +394,26 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
       requires_approval: true,
       status: "proposed",
     };
+
+    // Publish computed state to shared MCP context so 3D twin renders consistently
+    const mcpStatePatch = {
+      contractLimitKw: contractLimit,
+      optimizedPeakKw: newPeak,
+      monthlySavingsInr: newSavings,
+      compressorDelayMin: compressorDelay,
+      chillerRampPct: chillerRamp,
+      ambientTempC: tempC,
+      heatwaveFlag,
+      anomalyScore: -0.42,
+      lastRunTimestamp: new Date().toISOString(),
+      hasRunMCP: true,
+    };
+    const nextScenario = inferScenario(mcpStatePatch);
+
+    updateMCPState({
+      ...mcpStatePatch,
+      activeScenario: nextScenario,
+    });
 
     if (onRecommendationUpdated) onRecommendationUpdated(updatedRec);
     setIsRunning(false);

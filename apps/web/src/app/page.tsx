@@ -32,6 +32,8 @@ import { PRESETS, LocationPreset } from "@/data/facilityPresets";
 import { AICopilotDrawer } from "@/components/AICopilotDrawer";
 import { MCPAgentTracePanel } from "@/components/MCPAgentTracePanel";
 
+import { MCPStateProvider } from "@/hooks/useMCPState";
+
 // Dynamically load 3D Hero Scene (Client-Side Only)
 const Hero3DSection = dynamic(
   () => import("@/components/hero/Hero3DSection").then((mod) => mod.Hero3DSection),
@@ -227,7 +229,8 @@ export default function SinglePageApp() {
   const formattedSavings = `₹${Number(telemetry.liveSavingsInr).toLocaleString("en-IN")}`;
 
   return (
-    <div className="relative min-h-screen" style={{ background: "#0A0A14", color: "#F0F0FF" }}>
+    <MCPStateProvider>
+      <div className="relative min-h-screen" style={{ background: "#0A0A14", color: "#F0F0FF" }}>
       {/* Sliding Unified NavBar */}
       <NavBar
         visible={navVisible}
@@ -339,18 +342,6 @@ export default function SinglePageApp() {
         {/* Top Banner: Spike Warning & Quick Jump to Approval */}
         <div className="relative overflow-hidden rounded-2xl glass-panel-glow p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-card)]/90">
           <div className="flex items-start sm:items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-[var(--color-warning)]/15 border border-[var(--color-warning)]/30 text-[var(--color-warning)] flex-shrink-0 animate-pulse">
-              <AlertOctagon className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h3 className="text-sm sm:text-base font-bold text-[var(--color-text-primary)] font-heading">
-                  Simultaneous Startup Spike Forecast: {recommendation.id}
-                </h3>
-                <span className="badge badge-warning text-[10px]">
-                  Spike @ 06:00 AM (777.71 kW)
-                </span>
-              </div>
               <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-2xl leading-relaxed">
                 Chiller #2 and Compressor #1 restart exceeds 500 kW contract limit. Stagger plan reduces peak to 420.0 kW.
               </p>
@@ -690,5 +681,6 @@ export default function SinglePageApp() {
       {/* Floating AI Copilot Widget & Drawer */}
       <AICopilotDrawer />
     </div>
+    </MCPStateProvider>
   );
 }
