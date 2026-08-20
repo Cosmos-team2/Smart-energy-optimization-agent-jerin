@@ -318,7 +318,26 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
       });
       if (r.ok) {
         const data = await r.json();
-        if (data.answer && !data.answer.includes("Failed to")) {
+        // Only use backend answer if it's a real grounded response:
+        // - not empty
+        // - mentions the contract limit or kW or savings
+        // - is not a parsing failure / fallback error message
+        const BAD_PATTERNS = [
+          "couldn't parse",
+          "could not parse",
+          "failed to recalculate",
+          "failed to re",
+          "i couldn't",
+          "i could not",
+          "please try asking",
+          "no optimization recommendations",
+          "unable to calculate",
+        ];
+        const ans: string = (data.answer || "").toLowerCase();
+        const isUsable =
+          ans.length > 80 &&
+          !BAD_PATTERNS.some((p) => ans.includes(p));
+        if (isUsable) {
           groqAnswer = data.answer;
         }
       }
