@@ -30,6 +30,7 @@ import { RecommendationObject } from "@/types/contracts";
 import { NavBar } from "@/components/Navbar";
 import { PRESETS, LocationPreset } from "@/data/facilityPresets";
 import { AICopilotDrawer } from "@/components/AICopilotDrawer";
+import { MCPAgentTracePanel } from "@/components/MCPAgentTracePanel";
 
 // Dynamically load 3D Hero Scene (Client-Side Only)
 const Hero3DSection = dynamic(
@@ -327,6 +328,13 @@ export default function SinglePageApp() {
             <span>LIVE TELEMETRY</span>
           </div>
         </div>
+
+        {/* Live MCP Agent & MILP Trace Panel */}
+        <MCPAgentTracePanel
+          onRecommendationUpdated={(newRec) => {
+            setRecommendation(newRec);
+          }}
+        />
 
         {/* Top Banner: Spike Warning & Quick Jump to Approval */}
         <div className="relative overflow-hidden rounded-2xl glass-panel-glow p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-card)]/90">
