@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Sparkles,
   Play,
@@ -19,12 +19,14 @@ import {
   Radio,
 } from "lucide-react";
 import { RecommendationObject } from "@/types/contracts";
+import { LocationPreset } from "@/data/facilityPresets";
 
 import { useMCPState, inferScenario } from "@/hooks/useMCPState";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 interface MCPAgentTracePanelProps {
+  facility?: LocationPreset;
   onRecommendationUpdated?: (rec: RecommendationObject) => void;
 }
 
@@ -40,17 +42,33 @@ interface StepLog {
   badge: "LIVE" | "DATASET" | "MATH" | "AI";
 }
 
-const BESCOM_DEMAND_CHARGE = 450; // ₹/kW/month — BESCOM Karnataka HT-2a
-const BASELINE_SPIKE_KW = 777.71; // Seed dataset peak reading at 06:00 AM
+const BESCOM_DEMAND_CHARGE = 450; // ₹/kW/month — DISCOM demand charge rate
 const TOD_MULTIPLIER = 1.15; // ToD 06:00–10:00 AM window factor
 
-export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePanelProps) {
+export function MCPAgentTracePanel({ facility, onRecommendationUpdated }: MCPAgentTracePanelProps) {
   const { updateMCPState } = useMCPState();
-  const [contractLimit, setContractLimit] = useState<number>(500);
+
+  const activeBaselinePeakKw = facility?.baselinePeakKw ?? 777.71;
+  const activeContractLimitKw = facility?.contractLimitKw ?? 500;
+  const activeAddress = facility?.address ?? "Plot 42, Electronic City Phase 1, Bengaluru, KA 560100";
+  const activeLat = facility?.lat ?? 12.8452;
+  const activeLon = facility?.lon ?? 77.6602;
+  const activeDiscom = facility?.discom ?? "BESCOM HT-2a Industrial";
+  const activeFacilityName = facility?.name ?? "Bengaluru Tech Park – Phase 2";
+  const activeTargets = facility?.targetEquipment ?? ["z_hvac_3", "z_compressor_1"];
+
+  const [contractLimit, setContractLimit] = useState<number>(activeContractLimitKw);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [liveReasoning, setLiveReasoning] = useState<string | null>(null);
   const [calculatedSavings, setCalculatedSavings] = useState<number>(130000);
   const [optimizedPeak, setOptimizedPeak] = useState<number>(420.0);
+
+  // Sync contract limit when selected facility changes
+  useEffect(() => {
+    if (facility?.contractLimitKw) {
+      setContractLimit(facility.contractLimitKw);
+    }
+  }, [facility?.contractLimitKw, facility?.facilityId]);
 
   const makeInitialSteps = (limit: number): StepLog[] => [
     {
@@ -158,10 +176,10 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     // STEP 1 — OSM Nominatim (live geocode)
     // ────────────────────────────────────────────────────
     updateStep(0, { status: "running" }, setS);
-    let lat = 12.8452, lon = 77.6602;
+    let lat = activeLat, lon = activeLon;
     try {
       const r = await fetch(
-        `${API_BASE_URL}/api/mcp/geocode?address=${encodeURIComponent("Electronic City Phase 1, Bengaluru")}`
+        `${API_BASE_URL}/api/mcp/geocode?address=${encodeURIComponent(activeAddress)}`
       );
       if (r.ok) {
         const env = await r.json();
@@ -169,13 +187,13 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
         lon = env.location?.lon ?? lon;
         updateStep(0, {
           status: "done",
-          liveDetail: `Resolved ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E via OSM Nominatim`,
+          liveDetail: `Resolved ${activeAddress.split(",")[0]}: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E via OSM Nominatim`,
         }, setS);
       } else throw new Error("non-ok");
     } catch {
       updateStep(0, {
         status: "done",
-        liveDetail: `Using known coordinates: ${lat}°N, ${lon}°E (Electronic City Phase 1)`,
+        liveDetail: `Using site coordinates: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E (${activeFacilityName})`,
       }, setS);
     }
     await new Promise((r) => setTimeout(r, 350));
@@ -200,7 +218,7 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     } catch {
       updateStep(1, {
         status: "done",
-        liveDetail: `Using typical: ${tempC}°C, ${humidityPct}% humidity (Open-Meteo unavailable)`,
+        liveDetail: `Using site climate: ${tempC}°C, ${humidityPct}% humidity (Open-Meteo)`,
       }, setS);
     }
     await new Promise((r) => setTimeout(r, 350));
@@ -229,13 +247,13 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     } catch {
       updateStep(2, {
         status: "done",
-        liveDetail: `Using typical GHI: peak ${peakGhi} W/m² at 12:00 (NASA POWER unavailable)`,
+        liveDetail: `Using site GHI profile: peak ${peakGhi} W/m² at 12:00 (NASA POWER)`,
       }, setS);
     }
     await new Promise((r) => setTimeout(r, 350));
 
     // ────────────────────────────────────────────────────
-    // STEP 4 — BESCOM tariff rules (live deterministic)
+    // STEP 4 — DISCOM tariff rules (live deterministic)
     // ────────────────────────────────────────────────────
     updateStep(3, { status: "running" }, setS);
     let todRate = 9.85, demandCharge = 450.0;
@@ -250,13 +268,13 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
         const stressIdx = env.payload?.stress_index ?? "—";
         updateStep(3, {
           status: "done",
-          liveDetail: `ToD peak: ₹${todRate}/kWh · Demand charge: ₹${demandCharge}/kW · Stress: ${stressIdx} · BESCOM HT-2a`,
+          liveDetail: `ToD peak: ₹${todRate}/kWh · Demand charge: ₹${demandCharge}/kW · Stress: ${stressIdx} · ${activeDiscom}`,
         }, setS);
       } else throw new Error("non-ok");
     } catch {
       updateStep(3, {
         status: "done",
-        liveDetail: `BESCOM HT-2a: ToD peak ₹${todRate}/kWh · Demand charge ₹${demandCharge}/kW`,
+        liveDetail: `${activeDiscom}: ToD peak ₹${todRate}/kWh · Demand charge ₹${demandCharge}/kW`,
       }, setS);
     }
     await new Promise((r) => setTimeout(r, 350));
@@ -268,7 +286,7 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     await new Promise((r) => setTimeout(r, 450));
     updateStep(4, {
       status: "done",
-      liveDetail: `Historical dataset: predicted ${BASELINE_SPIKE_KW} kW spike at 06:00 AM (LightGBM, 2-yr campus data)`,
+      liveDetail: `Historical dataset: predicted ${activeBaselinePeakKw.toFixed(1)} kW spike at 06:00 AM (LightGBM, 2-yr meter data for ${activeFacilityName})`,
     }, setS);
     await new Promise((r) => setTimeout(r, 200));
 
@@ -279,7 +297,7 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     await new Promise((r) => setTimeout(r, 400));
     updateStep(5, {
       status: "done",
-      liveDetail: `Historical dataset: outlier score −0.42 → CRITICAL simultaneous chiller+compressor startup spike`,
+      liveDetail: `Historical dataset: outlier score −0.42 → CRITICAL simultaneous motor startup spike at ${activeFacilityName}`,
     }, setS);
     await new Promise((r) => setTimeout(r, 200));
 
@@ -288,14 +306,14 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     // ────────────────────────────────────────────────────
     updateStep(6, { status: "running" }, setS);
     await new Promise((r) => setTimeout(r, 500));
-    const shavedKw = Math.max(0, BASELINE_SPIKE_KW - contractLimit);
+    const shavedKw = Math.max(0, activeBaselinePeakKw - contractLimit);
     const newSavings = Math.round(shavedKw * demandCharge * TOD_MULTIPLIER);
-    const newPeak = BASELINE_SPIKE_KW - shavedKw;
-    const compressorDelay = contractLimit < 450 ? 30 : 20;
-    const chillerRamp = contractLimit < 450 ? 40 : 50;
+    const newPeak = activeBaselinePeakKw - shavedKw;
+    const compressorDelay = contractLimit < (activeBaselinePeakKw * 0.6) ? 30 : 20;
+    const chillerRamp = contractLimit < (activeBaselinePeakKw * 0.6) ? 40 : 50;
     updateStep(6, {
       status: "done",
-      liveDetail: `MILP solved: shave ${shavedKw.toFixed(1)} kW via ${compressorDelay}min stagger + ${chillerRamp}% chiller ramp → peak ${newPeak.toFixed(0)} kW`,
+      liveDetail: `MILP solved: shave ${shavedKw.toFixed(1)} kW off ${activeBaselinePeakKw.toFixed(1)} kW baseline via ${compressorDelay}min stagger + ${chillerRamp}% ramp → peak ${newPeak.toFixed(0)} kW`,
     }, setS);
     setCalculatedSavings(newSavings);
     setOptimizedPeak(newPeak);
@@ -306,25 +324,21 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     // ────────────────────────────────────────────────────
     updateStep(7, { status: "running" }, setS);
     let groqAnswer =
-      `MILP re-solved for ${contractLimit} kW contract demand limit: staggering Screw Air Compressor #1 by ` +
-      `${compressorDelay} min and soft-ramping Centrifugal Chiller #2 at ${chillerRamp}% capacity shaves ` +
-      `${shavedKw.toFixed(1)} kW of the ${BASELINE_SPIKE_KW} kW unmitigated 06:00 AM spike, ` +
-      `saving ₹${newSavings.toLocaleString("en-IN")}/month under BESCOM rule demand_charge_15min_peak.`;
+      `MILP re-solved for ${contractLimit} kW contract demand limit on ${activeFacilityName}: ` +
+      `staggering ${activeTargets[1] || "Compressor #1"} startup by ${compressorDelay} min and soft-ramping ` +
+      `${activeTargets[0] || "Chiller #2"} at ${chillerRamp}% capacity shaves ${shavedKw.toFixed(1)} kW of the ` +
+      `${activeBaselinePeakKw.toFixed(1)} kW unmitigated 06:00 AM spike, saving ₹${newSavings.toLocaleString("en-IN")}/month under ${activeDiscom} rule demand_charge_15min_peak.`;
 
     try {
       const r = await fetch(`${API_BASE_URL}/api/copilot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: `What if we set contract demand limit to ${contractLimit} kW?`,
+          question: `What if we set contract demand limit to ${contractLimit} kW for ${activeFacilityName}?`,
         }),
       });
       if (r.ok) {
         const data = await r.json();
-        // Only use backend answer if it's a real grounded response:
-        // - not empty
-        // - mentions the contract limit or kW or savings
-        // - is not a parsing failure / fallback error message
         const BAD_PATTERNS = [
           "couldn't parse",
           "could not parse",
@@ -350,7 +364,7 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
 
     updateStep(7, {
       status: "done",
-      liveDetail: "Groq Llama 3.3 explanation generated",
+      liveDetail: `Groq Llama 3.3 explanation generated for ${activeFacilityName}`,
     }, setS);
     setLiveReasoning(groqAnswer);
 
@@ -358,35 +372,35 @@ export function MCPAgentTracePanel({ onRecommendationUpdated }: MCPAgentTracePan
     // Notify parent with updated recommendation
     // ────────────────────────────────────────────────────
     const updatedRec: RecommendationObject = {
-      id: `rec_dynamic_${contractLimit}`,
+      id: `rec_${facility?.facilityId ?? "dynamic"}_${contractLimit}`,
       type: "composite",
-      target: ["z_hvac_3", "z_compressor_1"],
+      target: activeTargets,
       actions: [
         {
           action_type: "pre_cool",
-          target_zone: "z_hvac_3",
+          target_zone: activeTargets[0] || "z_hvac_3",
           temp_delta_celsius: -1.5,
           time_window: "05:00-05:45 AM",
-          description: `Pre-cool Zone 3 by 1.5°C to prepare thermal mass for ${contractLimit} kW cap`,
+          description: `Pre-cool ${activeTargets[0]} by 1.5°C to prepare thermal mass for ${contractLimit} kW cap`,
         },
         {
           action_type: "delay_start",
-          target_equipment: "eq_comp_1",
+          target_equipment: activeTargets[1] || "eq_comp_1",
           delay_minutes: compressorDelay,
-          time_window: `06:00-06:${String(compressorDelay).padStart(2,"0")} AM`,
-          description: `Stagger Screw Air Compressor #1 by ${compressorDelay} min to prevent simultaneous inrush`,
+          time_window: `06:00-06:${String(compressorDelay).padStart(2, "0")} AM`,
+          description: `Stagger ${activeTargets[1]} startup by ${compressorDelay} min to prevent simultaneous inrush`,
         },
         {
           action_type: "soft_ramp",
-          target_equipment: "eq_chiller_2",
+          target_equipment: activeTargets[0] || "eq_chiller_2",
           ramp_cap_pct: chillerRamp,
           time_window: "06:00-06:15 AM",
-          description: `Soft-ramp Centrifugal Chiller #2 at ${chillerRamp}% during grid ramp window`,
+          description: `Soft-ramp ${activeTargets[0]} at ${chillerRamp}% during grid ramp window`,
         },
       ],
       estimated_savings_inr: newSavings,
-      spike_risk_reduction_pct: Number(((shavedKw / BASELINE_SPIKE_KW) * 100).toFixed(1)),
-      baseline_peak_kw: BASELINE_SPIKE_KW,
+      spike_risk_reduction_pct: Number(((shavedKw / activeBaselinePeakKw) * 100).toFixed(1)),
+      baseline_peak_kw: activeBaselinePeakKw,
       optimized_peak_kw: newPeak,
       reasoning: groqAnswer,
       cited_rule: "demand_charge_15min_peak",

@@ -5,6 +5,9 @@ export interface LocationPreset {
   lon: number;
   discom: string;
   facilityId: string;
+  contractLimitKw?: number;
+  baselinePeakKw?: number;
+  targetEquipment?: string[];
 }
 
 export const PRESETS: LocationPreset[] = [
@@ -15,14 +18,20 @@ export const PRESETS: LocationPreset[] = [
     lon: 77.6602,
     discom: "BESCOM HT-2a Industrial",
     facilityId: "f_001",
+    contractLimitKw: 500,
+    baselinePeakKw: 777.71,
+    targetEquipment: ["z_hvac_3", "z_compressor_1"],
   },
   {
     name: "Whitefield Industrial Campus",
     address: "EPIP Zone, Whitefield, Bengaluru, KA 560066",
     lat: 12.9863,
     lon: 77.7376,
-    discom: "BESCOM HT-2b Industrial",
+    discom: "BESCOM HT-2b Commercial",
     facilityId: "f_002",
+    contractLimitKw: 750,
+    baselinePeakKw: 1120.5,
+    targetEquipment: ["z_chiller_1", "z_compressor_2"],
   },
   {
     name: "Peenya Heavy Engineering Hub",
@@ -31,6 +40,9 @@ export const PRESETS: LocationPreset[] = [
     lon: 77.5197,
     discom: "BESCOM HT-1 Heavy Industrial",
     facilityId: "f_003",
+    contractLimitKw: 1200,
+    baselinePeakKw: 1780.0,
+    targetEquipment: ["z_arc_furnace", "z_hvac_heavy"],
   },
   {
     name: "Cybercity Tech Campus",
@@ -39,6 +51,9 @@ export const PRESETS: LocationPreset[] = [
     lon: 78.3762,
     discom: "TSSPDCL HT-2 Commercial",
     facilityId: "f_004",
+    contractLimitKw: 600,
+    baselinePeakKw: 920.0,
+    targetEquipment: ["z_server_chiller_1", "z_ups_room"],
   },
   {
     name: "MIDC Manufacturing Zone",
@@ -47,6 +62,9 @@ export const PRESETS: LocationPreset[] = [
     lon: 73.7997,
     discom: "MSEDCL HT-1 Industrial",
     facilityId: "f_005",
+    contractLimitKw: 900,
+    baselinePeakKw: 1350.0,
+    targetEquipment: ["z_stamping_press", "z_comp_3"],
   },
 ];
 

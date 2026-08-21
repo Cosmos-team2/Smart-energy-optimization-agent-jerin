@@ -180,65 +180,59 @@ function HomeContent() {
   const { mcpState } = useMCPState();
   const hasMCP = mcpState.hasRunMCP;
 
-  // Effective values: MCP-computed when available, seed-data defaults otherwise
-  const effectiveContractLimitKw = hasMCP ? mcpState.contractLimitKw : 500;
-  const effectiveOptimizedPeakKw = hasMCP ? mcpState.optimizedPeakKw : 420.0;
-  const effectiveSavingsInr = hasMCP ? mcpState.monthlySavingsInr : recommendation.estimated_savings_inr;
-  const effectiveCompressorDelay = hasMCP ? mcpState.compressorDelayMin : 20;
-  const effectiveChillerRamp = hasMCP ? mcpState.chillerRampPct : 50;
-  const BASELINE_KW = 777.71;
+  // Effective values: MCP-computed when available, facility defaults otherwise
+  const BASELINE_KW = (hasMCP ? (mcpState.baselinePeakKw ?? selectedFacility.baselinePeakKw) : selectedFacility.baselinePeakKw) ?? 777.71;
+  const effectiveContractLimitKw = (hasMCP ? mcpState.contractLimitKw : selectedFacility.contractLimitKw) ?? 500;
+  const effectiveOptimizedPeakKw = hasMCP ? mcpState.optimizedPeakKw : (BASELINE_KW * 0.55);
+  const effectiveSavingsInr = hasMCP
+    ? mcpState.monthlySavingsInr
+    : Math.round((BASELINE_KW - effectiveContractLimitKw) * 450 * 1.15);
+  const effectiveCompressorDelay = hasMCP ? mcpState.compressorDelayMin : (effectiveContractLimitKw < BASELINE_KW * 0.6 ? 30 : 20);
+  const effectiveChillerRamp = hasMCP ? mcpState.chillerRampPct : (effectiveContractLimitKw < BASELINE_KW * 0.6 ? 40 : 50);
   const effectiveShavedKw = Math.max(0, BASELINE_KW - effectiveOptimizedPeakKw);
-  const effectiveSpikeRiskPct = hasMCP
-    ? Number(((effectiveShavedKw / BASELINE_KW) * 100).toFixed(1))
-    : stream.spikeRiskPct;
-  const effectiveRoiX = hasMCP
-    ? Number((effectiveSavingsInr * 12 / 270000).toFixed(1))
-    : 4.8;
-  const effectiveAnnualSavingsL = hasMCP
-    ? `₹${(effectiveSavingsInr * 12 / 100000).toFixed(1)}L`
-    : "₹15.6L";
+  const effectiveSpikeRiskPct = Number(((effectiveShavedKw / BASELINE_KW) * 100).toFixed(1));
+  const effectiveRoiX = Number((effectiveSavingsInr * 12 / 270000).toFixed(1));
+  const effectiveAnnualSavingsL = `₹${(effectiveSavingsInr * 12 / 100000).toFixed(1)}L`;
 
-  // Dynamic recommendation derived from live MCP state
+  const activeTargets = selectedFacility.targetEquipment ?? ["z_hvac_3", "z_compressor_1"];
+
+  // Dynamic recommendation derived from selected facility & live MCP state
   const displayRec: RecommendationObject = {
-    id: hasMCP ? `rec_dynamic_${effectiveContractLimitKw}` : recommendation.id,
-    type: recommendation.type,
-    target: recommendation.target,
-    actions: hasMCP
-      ? [
-          {
-            action_type: "pre_cool",
-            target_zone: "z_hvac_3",
-            temp_delta_celsius: -1.5,
-            time_window: "05:00-05:45 AM",
-            description: `Pre-cool Zone 3 by 1.5°C to prepare thermal mass for ${effectiveContractLimitKw} kW target`,
-          },
-          {
-            action_type: "delay_start",
-            target_equipment: "eq_comp_1",
-            delay_minutes: effectiveCompressorDelay,
-            time_window: `06:00-06:${String(effectiveCompressorDelay).padStart(2, "0")} AM`,
-            description: `Delay motor restart by +${effectiveCompressorDelay} min (to 06:${String(effectiveCompressorDelay).padStart(2, "0")} AM)`,
-          },
-          {
-            action_type: "soft_ramp",
-            target_equipment: "eq_chiller_2",
-            ramp_cap_pct: effectiveChillerRamp,
-            time_window: "06:00-06:15 AM",
-            description: `Limit soft ramp rate to ${effectiveChillerRamp}% cap during startup`,
-          },
-        ]
-      : recommendation.actions,
+    id: `rec_${selectedFacility.facilityId}_${effectiveContractLimitKw}`,
+    type: "composite",
+    target: activeTargets,
+    actions: [
+      {
+        action_type: "pre_cool",
+        target_zone: activeTargets[0] || "z_hvac_3",
+        temp_delta_celsius: -1.5,
+        time_window: "05:00-05:45 AM",
+        description: `Pre-cool ${activeTargets[0] || "Zone 3"} by 1.5°C to prepare thermal mass for ${effectiveContractLimitKw} kW target`,
+      },
+      {
+        action_type: "delay_start",
+        target_equipment: activeTargets[1] || "eq_comp_1",
+        delay_minutes: effectiveCompressorDelay,
+        time_window: `06:00-06:${String(effectiveCompressorDelay).padStart(2, "0")} AM`,
+        description: `Delay ${activeTargets[1] || "compressor"} restart by +${effectiveCompressorDelay} min (to 06:${String(effectiveCompressorDelay).padStart(2, "0")} AM)`,
+      },
+      {
+        action_type: "soft_ramp",
+        target_equipment: activeTargets[0] || "eq_chiller_2",
+        ramp_cap_pct: effectiveChillerRamp,
+        time_window: "06:00-06:15 AM",
+        description: `Limit soft ramp rate to ${effectiveChillerRamp}% cap during startup`,
+      },
+    ],
     estimated_savings_inr: effectiveSavingsInr,
     spike_risk_reduction_pct: effectiveSpikeRiskPct,
     baseline_peak_kw: BASELINE_KW,
     optimized_peak_kw: effectiveOptimizedPeakKw,
-    reasoning: recommendation.id.startsWith("rec_dynamic_")
+    reasoning: recommendation.id.includes(selectedFacility.facilityId) && recommendation.reasoning
       ? recommendation.reasoning
-      : (hasMCP
-          ? `MILP re-solved for ${effectiveContractLimitKw} kW contract demand limit: staggering Screw Air Compressor #1 by ${effectiveCompressorDelay} min and soft-ramping Centrifugal Chiller #2 at ${effectiveChillerRamp}% capacity shaves ${effectiveShavedKw.toFixed(1)} kW of the 777.71 kW unmitigated 06:00 AM spike, saving ₹${effectiveSavingsInr.toLocaleString("en-IN")}/month under BESCOM rule demand_charge_15min_peak.`
-          : recommendation.reasoning),
-    cited_rule: recommendation.cited_rule,
-    confidence: hasMCP ? 0.96 : recommendation.confidence,
+      : `MILP re-solved for ${effectiveContractLimitKw} kW contract demand limit on ${selectedFacility.name}: staggering ${activeTargets[1] || "Compressor #1"} by ${effectiveCompressorDelay} min and soft-ramping ${activeTargets[0] || "Chiller #2"} at ${effectiveChillerRamp}% capacity shaves ${effectiveShavedKw.toFixed(1)} kW of the ${BASELINE_KW.toFixed(1)} kW unmitigated 06:00 AM spike, saving ₹${effectiveSavingsInr.toLocaleString("en-IN")}/month under ${selectedFacility.discom} rule demand_charge_15min_peak.`,
+    cited_rule: `${selectedFacility.discom} (15-min peak demand)`,
+    confidence: 0.96,
     requires_approval: true,
     status: recommendation.status,
   };
@@ -402,6 +396,7 @@ function HomeContent() {
 
         {/* Live MCP Agent & MILP Trace Panel */}
         <MCPAgentTracePanel
+          facility={selectedFacility}
           onRecommendationUpdated={(newRec) => {
             setRecommendation(newRec);
           }}

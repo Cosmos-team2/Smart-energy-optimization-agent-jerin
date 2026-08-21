@@ -21,6 +21,7 @@ export interface MCPState {
   lastRunTimestamp: string | null;
   activeScenario: ScenarioKey;
   hasRunMCP: boolean;
+  baselinePeakKw?: number;
 }
 
 const DEFAULT_STATE: MCPState = {
