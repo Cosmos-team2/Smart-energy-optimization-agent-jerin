@@ -378,7 +378,6 @@ function HomeContent() {
 
           {/* Main card */}
           <div style={{
-            animation: "celebCardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both",
             background: "linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(139,92,246,0.08) 100%)",
             border: "1.5px solid rgba(16,185,129,0.45)",
             borderRadius: 24,
@@ -458,7 +457,7 @@ function HomeContent() {
                 {formattedSavings}
               </div>
               <div style={{ fontSize: 12, color: "#6EE7B7", marginTop: 2 }}>
-                Peak shaved {Math.round(((displayRec.baselineKw ?? 777.71) - (displayRec.optimizedKw ?? 420)) / (displayRec.baselineKw ?? 777.71) * 100)}% · {displayRec.optimizedKw ?? 420} kW
+                Peak shaved {Math.round(((displayRec.baseline_peak_kw ?? 777.71) - (displayRec.optimized_peak_kw ?? 420)) / (displayRec.baseline_peak_kw ?? 777.71) * 100)}% · {displayRec.optimized_peak_kw ?? 420} kW
               </div>
             </div>
           </div>
