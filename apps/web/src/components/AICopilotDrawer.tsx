@@ -13,6 +13,7 @@ import {
   TrendingDown,
   ShieldAlert,
 } from "lucide-react";
+import { useMCPState } from "@/hooks/useMCPState";
 import { apiService } from "@/services/apiService";
 
 interface ChatMessage {
@@ -24,14 +25,17 @@ interface ChatMessage {
   intentRouted?: boolean;
 }
 
-const SUGGESTED_QUESTIONS = [
-  "Why was Centrifugal Chiller #2 soft-ramped at 06:00 AM?",
-  "What if we reduce the contract demand limit to 400 kW?",
-  "How was the ₹1,30,000 monthly savings calculated?",
-  "Which DISCOM rule was cited for the peak demand penalty?",
-];
-
 export function AICopilotDrawer() {
+  const { mcpState } = useMCPState();
+  const limit = mcpState.hasRunMCP ? mcpState.contractLimitKw : 500;
+  const savings = mcpState.hasRunMCP ? mcpState.monthlySavingsInr : 130000;
+
+  const SUGGESTED_QUESTIONS = [
+    "Why was Centrifugal Chiller #2 soft-ramped at 06:00 AM?",
+    `What if we shift the contract limit to ${limit === 400 ? 450 : 400} kW?`,
+    `How was the ₹${savings.toLocaleString("en-IN")} monthly savings calculated?`,
+    "Which DISCOM rule was cited for the peak demand penalty?",
+  ];
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -75,7 +79,7 @@ export function AICopilotDrawer() {
         {
           id: `err_${Date.now()}`,
           sender: "copilot",
-          text: "I experienced an error communicating with the agent graph backend. Using local grounded reasoning: recommendation rec_042 staggering pre-cools Zone 3 and delays Compressor #1 startup to keep peak load under 500 kW.",
+          text: `I experienced an error communicating with the agent graph backend. Using local grounded reasoning: recommendation rec_dynamic_${limit} staggering pre-cools Zone 3 and delays Compressor #1 startup to keep peak load under ${limit} kW, saving ₹${savings.toLocaleString("en-IN")}/month.`,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);

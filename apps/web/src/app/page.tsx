@@ -198,6 +198,51 @@ function HomeContent() {
     ? `₹${(effectiveSavingsInr * 12 / 100000).toFixed(1)}L`
     : "₹15.6L";
 
+  // Dynamic recommendation derived from live MCP state
+  const displayRec: RecommendationObject = {
+    id: hasMCP ? `rec_dynamic_${effectiveContractLimitKw}` : recommendation.id,
+    type: recommendation.type,
+    target: recommendation.target,
+    actions: hasMCP
+      ? [
+          {
+            action_type: "pre_cool",
+            target_zone: "z_hvac_3",
+            temp_delta_celsius: -1.5,
+            time_window: "05:00-05:45 AM",
+            description: `Pre-cool Zone 3 by 1.5°C to prepare thermal mass for ${effectiveContractLimitKw} kW target`,
+          },
+          {
+            action_type: "delay_start",
+            target_equipment: "eq_comp_1",
+            delay_minutes: effectiveCompressorDelay,
+            time_window: `06:00-06:${String(effectiveCompressorDelay).padStart(2, "0")} AM`,
+            description: `Delay motor restart by +${effectiveCompressorDelay} min (to 06:${String(effectiveCompressorDelay).padStart(2, "0")} AM)`,
+          },
+          {
+            action_type: "soft_ramp",
+            target_equipment: "eq_chiller_2",
+            ramp_cap_pct: effectiveChillerRamp,
+            time_window: "06:00-06:15 AM",
+            description: `Limit soft ramp rate to ${effectiveChillerRamp}% cap during startup`,
+          },
+        ]
+      : recommendation.actions,
+    estimated_savings_inr: effectiveSavingsInr,
+    spike_risk_reduction_pct: effectiveSpikeRiskPct,
+    baseline_peak_kw: BASELINE_KW,
+    optimized_peak_kw: effectiveOptimizedPeakKw,
+    reasoning: recommendation.id.startsWith("rec_dynamic_")
+      ? recommendation.reasoning
+      : (hasMCP
+          ? `MILP re-solved for ${effectiveContractLimitKw} kW contract demand limit: staggering Screw Air Compressor #1 by ${effectiveCompressorDelay} min and soft-ramping Centrifugal Chiller #2 at ${effectiveChillerRamp}% capacity shaves ${effectiveShavedKw.toFixed(1)} kW of the 777.71 kW unmitigated 06:00 AM spike, saving ₹${effectiveSavingsInr.toLocaleString("en-IN")}/month under BESCOM rule demand_charge_15min_peak.`
+          : recommendation.reasoning),
+    cited_rule: recommendation.cited_rule,
+    confidence: hasMCP ? 0.96 : recommendation.confidence,
+    requires_approval: true,
+    status: recommendation.status,
+  };
+
   const telemetry = {
     currentTotalKw: stream.latestReading?.total_kw ?? stream.currentPeakKw,
     baselineKw: stream.latestReading?.base_kw ?? 0,
@@ -493,17 +538,17 @@ function HomeContent() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-bold text-base text-[var(--color-text-primary)]">
-                    {recommendation.id}
+                    {displayRec.id}
                   </span>
                   <span className="badge badge-purple uppercase text-[10px]">
-                    {recommendation.type}
+                    {displayRec.type}
                   </span>
                   <span className="badge badge-info text-[10px]">
-                    CONFIDENCE: {Math.round(recommendation.confidence * 100)}%
+                    CONFIDENCE: {Math.round(displayRec.confidence * 100)}%
                   </span>
                 </div>
                 <p className="text-xs text-[var(--color-text-muted)] mt-0.5">
-                  Targeted Equipment: {recommendation.target.join(", ")}
+                  Targeted Equipment: {displayRec.target.join(", ")}
                 </p>
               </div>
             </div>
@@ -515,7 +560,7 @@ function HomeContent() {
                   Est. Cost Avoidance
                 </span>
                 <span className="text-base font-extrabold text-[var(--color-success)] font-mono">
-                  +₹{recommendation.estimated_savings_inr.toLocaleString("en-IN")}
+                  +₹{displayRec.estimated_savings_inr.toLocaleString("en-IN")}
                 </span>
               </div>
               <div className="h-8 w-px bg-[var(--color-border)]" />
@@ -524,7 +569,7 @@ function HomeContent() {
                   Spike Reduction
                 </span>
                 <span className="text-base font-extrabold text-[var(--color-primary)] font-mono">
-                  -{recommendation.spike_risk_reduction_pct}%
+                  -{displayRec.spike_risk_reduction_pct}%
                 </span>
               </div>
             </div>
@@ -539,7 +584,7 @@ function HomeContent() {
                 Orchestrator Explanation &amp; Decision Grounds
               </span>
               <div className="p-4 rounded-2xl bg-[var(--color-surface-2)]/80 border border-[var(--color-border)] text-sm text-[var(--color-text-primary)] leading-relaxed">
-                {recommendation.reasoning}
+                {displayRec.reasoning}
               </div>
             </div>
 
@@ -551,14 +596,14 @@ function HomeContent() {
               </span>
               <div className="p-4 rounded-2xl bg-[var(--color-surface-2)]/80 border border-[var(--color-border)] space-y-2">
                 <div className="font-mono text-xs font-bold text-[var(--color-primary)]">
-                  {recommendation.cited_rule}
+                  {displayRec.cited_rule}
                 </div>
                 <p className="text-[11px] text-[var(--color-text-muted)] leading-normal">
                   Fixed demand charges billed on maximum 15-min integrated demand. Clustered motor startup incurs penalties.
                 </p>
                 <div className="pt-2 border-t border-[var(--color-border)] flex items-center justify-between text-[11px] font-mono">
                   <span className="text-[var(--color-text-muted)]">Contract Limit:</span>
-                  <span className="text-[var(--color-text-primary)] font-bold">500 kW</span>
+                  <span className="text-[var(--color-text-primary)] font-bold">{effectiveContractLimitKw} kW</span>
                 </div>
               </div>
             </div>
@@ -568,10 +613,10 @@ function HomeContent() {
           <div className="space-y-3">
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] flex items-center gap-1.5">
               <Sliders className="h-3.5 w-3.5 text-[var(--color-success)]" />
-              Prescribed Action Sequence ({recommendation.actions.length} Steps)
+              Prescribed Action Sequence ({displayRec.actions.length} Steps)
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {recommendation.actions.map((act, idx) => (
+              {displayRec.actions.map((act, idx) => (
                 <div
                   key={idx}
                   className="p-4 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border)] relative overflow-hidden flex flex-col justify-between"
