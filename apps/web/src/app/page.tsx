@@ -305,11 +305,18 @@ function HomeContent() {
 
   const formattedSavings = `₹${Number(effectiveSavingsInr).toLocaleString("en-IN")}`;
 
-  const celebrationSteps = displayRec.steps?.slice(0, 3) ?? [
-    { step: "PRE COOL", label: "Reduce HVAC setpoint -1.5°C" },
-    { step: "DELAY START", label: "Compressor restart → 06:20 AM" },
-    { step: "VERIFY", label: "Peak load confirmed 420 kW" },
-  ];
+  const celebrationSteps = displayRec.actions && displayRec.actions.length > 0 
+    ? displayRec.actions.slice(0, 3).map((act) => ({
+        step: act.action_type.replace("_", " ").toUpperCase(),
+        label: act.action_type === "pre_cool" ? `Reduce setpoint ${act.temp_delta_celsius}°C` :
+               act.action_type === "delay_start" ? `Delay restart by +${act.delay_minutes} min` :
+               act.action_type === "soft_ramp" ? `Limit soft ramp rate to ${act.ramp_cap_pct}%` : "Execute step"
+      }))
+    : [
+        { step: "PRE COOL", label: "Reduce HVAC setpoint -1.5°C" },
+        { step: "DELAY START", label: "Compressor restart → 06:20 AM" },
+        { step: "VERIFY", label: "Peak load confirmed 420 kW" },
+      ];
 
   return (
     <div className="relative min-h-screen" style={{ background: "#0A0A14", color: "#F0F0FF" }}>
