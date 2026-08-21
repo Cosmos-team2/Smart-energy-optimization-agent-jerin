@@ -58,6 +58,18 @@ def load_seed_data():
     count = conn.execute("SELECT COUNT(*) FROM readings;").fetchone()[0]
     peak = conn.execute("SELECT MAX(total_kw) FROM readings;").fetchone()[0]
     print(f"Successfully loaded {count} rows into table 'readings'. Peak total_kw = {peak} kW.")
+    
+    # Load the random dataset
+    RANDOM_CSV = DB_DIR / "refs" / "random_dataset.csv"
+    if RANDOM_CSV.exists():
+        csv_path_str = str(RANDOM_CSV).replace("\\", "/")
+        print(f"Loading random data from {RANDOM_CSV}...")
+        conn.execute(f"CREATE TABLE random_data AS SELECT * FROM read_csv_auto('{csv_path_str}');")
+        rand_count = conn.execute("SELECT COUNT(*) FROM random_data;").fetchone()[0]
+        print(f"Successfully loaded {rand_count} rows into table 'random_data'.")
+    else:
+        print(f"Warning: Random dataset not found at {RANDOM_CSV}")
+        
     conn.close()
 
 
