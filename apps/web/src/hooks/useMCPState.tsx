@@ -22,6 +22,8 @@ export interface MCPState {
   activeScenario: ScenarioKey;
   hasRunMCP: boolean;
   baselinePeakKw?: number;
+  /** True once the operator approves the governance gate — triggers 3D twin execution mode */
+  isApprovedExecution?: boolean;
 }
 
 const DEFAULT_STATE: MCPState = {
@@ -36,6 +38,7 @@ const DEFAULT_STATE: MCPState = {
   lastRunTimestamp: null,
   activeScenario: "simultaneous_spike",
   hasRunMCP: false,
+  isApprovedExecution: false,
 };
 
 interface MCPStateContextValue {

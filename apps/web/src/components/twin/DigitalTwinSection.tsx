@@ -198,6 +198,20 @@ export function DigitalTwinSection({
     }
   }, [mcpState.hasRunMCP, mcpState.activeScenario, mcpState.lastRunTimestamp]);
 
+  // ── React to governance approval: switch twin to stagger_applied execution mode ──
+  useEffect(() => {
+    if (!mcpState.isApprovedExecution) return;
+    // Cancel any running simulation
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    setSimulating(false);
+    setSimStepIdx(-1);
+    // Switch to stagger_applied scenario showing optimised peak
+    setActiveScenario("stagger_applied");
+    setMode("optimized");
+    setIndex(SPIKE_INDEX);
+    setApprovalStatus("APPROVED");
+  }, [mcpState.isApprovedExecution]);
+
   const currentScenarioSteps = useMemo(
     () => getStepsForScenario(activeScenario, mcpState),
     [activeScenario, mcpState]
@@ -477,6 +491,7 @@ export function DigitalTwinSection({
         </div>
       </div>
 
+      {/* ── Governance Execution HUD Banner ── */}
       {approvalStatus !== "PENDING" && (
         <div
           style={{
@@ -484,27 +499,91 @@ export function DigitalTwinSection({
             top: 54,
             left: "50%",
             transform: "translateX(-50%)",
-            padding: "6px 16px",
-            borderRadius: 999,
-            background:
-              approvalStatus === "APPROVED"
-                ? "rgba(103,232,249,0.12)"
-                : "rgba(139,152,165,0.12)",
-            border: `1px solid ${
-              approvalStatus === "APPROVED" ? COLORS.energyCyan : "#8b98a5"
-            }`,
-            color: approvalStatus === "APPROVED" ? COLORS.energyCyan : "#c8d0d8",
-            fontFamily: "'Segoe UI', system-ui, sans-serif",
-            fontSize: 11.5,
-            fontWeight: 700,
-            letterSpacing: 0.4,
-            pointerEvents: "none",
             zIndex: 20,
+            pointerEvents: "none",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
           }}
         >
-          {approvalStatus === "APPROVED"
-            ? "✓ OPTIMIZATION APPLIED — rec_042"
-            : "✕ RECOMMENDATION REJECTED — baseline retained"}
+          <style>{`
+            @keyframes twinExecPulse {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7), inset 0 0 12px rgba(16,185,129,0.15); }
+              50% { box-shadow: 0 0 20px 6px rgba(16,185,129,0.3), inset 0 0 20px rgba(16,185,129,0.25); }
+            }
+            @keyframes twinBadgeBlink {
+              0%, 100% { opacity: 1; } 50% { opacity: 0.6; }
+            }
+            @keyframes slideInBanner { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+          `}</style>
+
+          {approvalStatus === "APPROVED" ? (
+            <div style={{
+              background: "linear-gradient(90deg, rgba(16,185,129,0.18), rgba(52,211,153,0.10), rgba(16,185,129,0.18))",
+              border: "1px solid rgba(16,185,129,0.55)",
+              borderRadius: 999,
+              padding: "8px 22px",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              animation: "twinExecPulse 2.4s ease-in-out infinite",
+              fontFamily: "'Segoe UI', system-ui, sans-serif",
+            }}>
+              <span style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: "#10B981",
+                animation: "twinBadgeBlink 1.2s ease-in-out infinite",
+                boxShadow: "0 0 8px #10B981",
+                flexShrink: 0,
+              }} />
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: "#10B981", textTransform: "uppercase" }}>
+                EXECUTION ACTIVE
+              </span>
+              <span style={{ width: 1, height: 14, background: "rgba(16,185,129,0.35)" }} />
+              <span style={{ fontSize: 10.5, fontWeight: 600, color: "#6EE7B7", letterSpacing: 0.5 }}>
+                Stagger Plan · Peak {mcpState.optimizedPeakKw ? Math.round(mcpState.optimizedPeakKw) : 420} kW
+              </span>
+            </div>
+          ) : (
+            <div style={{
+              background: "rgba(139,152,165,0.12)",
+              border: "1px solid #8b98a5",
+              borderRadius: 999,
+              padding: "6px 16px",
+              color: "#c8d0d8",
+              fontFamily: "'Segoe UI', system-ui, sans-serif",
+              fontSize: 11.5,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+            }}>
+              ✕ RECOMMENDATION REJECTED — baseline retained
+            </div>
+          )}
+
+          {/* Step execution mini-indicators */}
+          {approvalStatus === "APPROVED" && (
+            <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
+              {["PRE COOL", "DELAY START", "VERIFY"].map((label, i) => (
+                <div key={i} style={{
+                  fontSize: 8.5,
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  color: "#10B981",
+                  background: "rgba(16,185,129,0.12)",
+                  border: "1px solid rgba(16,185,129,0.3)",
+                  borderRadius: 4,
+                  padding: "3px 7px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}>
+                  <span style={{ color: "#34D399" }}>✓</span>
+                  {label}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

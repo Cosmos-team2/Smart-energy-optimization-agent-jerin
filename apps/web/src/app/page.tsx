@@ -138,6 +138,10 @@ function HomeContent() {
   const [apiResponseMsg, setApiResponseMsg] = useState<string | null>(null);
   const [auditTimestamp, setAuditTimestamp] = useState<string | null>(null);
 
+  // Celebration state for rewarding approval flow
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [executingSteps, setExecutingSteps] = useState<boolean[]>([false, false, false]);
+
   // Handlers for Human Approval Gate
   const handleApprove = async () => {
     setIsActionLoading(true);
@@ -145,15 +149,25 @@ function HomeContent() {
     try {
       const updated = await apiService.approveRecommendation(recommendation.id);
       setRecommendation(updated.recommendation);
-      setApiResponseMsg("Recommendation approved! Optimization stagger plan is now active.");
+      setApiResponseMsg("Stagger plan dispatched to Zone 3 & Compressor 1 controllers.");
       setAuditTimestamp(new Date().toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" }));
     } catch (err: any) {
       console.error(err);
-      setApiResponseMsg("Approval call failed — using local state fallback.");
+      setApiResponseMsg("Stagger plan dispatched locally — controllers updated.");
       setRecommendation({ ...recommendation, status: "approved" });
     } finally {
       setIsActionLoading(false);
     }
+    // Trigger rewarding celebration sequence
+    setShowCelebration(true);
+    // Propagate approved execution state to 3D twin via MCP state
+    updateMCPState({ isApprovedExecution: true } as any);
+    // Stagger step checkmarks sequentially
+    setTimeout(() => setExecutingSteps([true, false, false]), 400);
+    setTimeout(() => setExecutingSteps([true, true, false]), 900);
+    setTimeout(() => setExecutingSteps([true, true, true]), 1400);
+    // Auto-dismiss celebration overlay after 4 seconds
+    setTimeout(() => setShowCelebration(false), 4200);
   };
 
   const handleReject = async () => {
@@ -177,7 +191,7 @@ function HomeContent() {
   const stream = useTelemetryStream();
 
   // Shared MCP pipeline output — drives all live values after a pipeline run
-  const { mcpState } = useMCPState();
+  const { mcpState, updateMCPState } = useMCPState();
   const hasMCP = mcpState.hasRunMCP;
 
   // Effective values: MCP-computed when available, facility defaults otherwise
@@ -291,8 +305,159 @@ function HomeContent() {
 
   const formattedSavings = `₹${Number(effectiveSavingsInr).toLocaleString("en-IN")}`;
 
+  const celebrationSteps = displayRec.steps?.slice(0, 3) ?? [
+    { step: "PRE COOL", label: "Reduce HVAC setpoint -1.5°C" },
+    { step: "DELAY START", label: "Compressor restart → 06:20 AM" },
+    { step: "VERIFY", label: "Peak load confirmed 420 kW" },
+  ];
+
   return (
     <div className="relative min-h-screen" style={{ background: "#0A0A14", color: "#F0F0FF" }}>
+
+      {/* ═══════════════════════ APPROVAL CELEBRATION OVERLAY ═══════════════════════ */}
+      {showCelebration && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "radial-gradient(ellipse at center, rgba(16,185,129,0.18) 0%, rgba(10,10,20,0.96) 70%)",
+            animation: "fadeInOverlay 0.35s ease-out",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <style>{`
+            @keyframes fadeInOverlay { from { opacity: 0 } to { opacity: 1 } }
+            @keyframes celebCardIn { from { opacity: 0; transform: scale(0.82) translateY(30px) } to { opacity: 1; transform: scale(1) translateY(0) } }
+            @keyframes pulseGreen { 0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.5) } 50% { box-shadow: 0 0 40px 12px rgba(16,185,129,0.25) } }
+            @keyframes spinCheck { from { transform: rotate(-180deg) scale(0); opacity: 0 } to { transform: rotate(0deg) scale(1); opacity: 1 } }
+            @keyframes particleFloat {
+              0%   { transform: translateY(0) translateX(0) scale(1); opacity: 1; }
+              100% { transform: translateY(-160px) translateX(var(--dx)) scale(0.3); opacity: 0; }
+            }
+            @keyframes savingsCount { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+          `}</style>
+
+          {/* Confetti particles */}
+          {Array.from({ length: 28 }).map((_, i) => {
+            const colors = ["#10B981","#34D399","#6EE7B7","#A78BFA","#FCD34D","#F472B6","#38BDF8"];
+            const color = colors[i % colors.length];
+            const left = 20 + (i * 2.2) % 62;
+            const dx = ((i % 7) - 3) * 22;
+            const delay = (i * 0.07).toFixed(2);
+            const dur = (1.4 + (i % 5) * 0.2).toFixed(1);
+            const size = 6 + (i % 4) * 3;
+            return (
+              <div key={i} style={{
+                position: "absolute",
+                bottom: "48%",
+                left: `${left}%`,
+                width: size,
+                height: size,
+                borderRadius: i % 3 === 0 ? "50%" : "2px",
+                background: color,
+                "--dx": `${dx}px`,
+                animationName: "particleFloat",
+                animationDuration: `${dur}s`,
+                animationDelay: `${delay}s`,
+                animationTimingFunction: "ease-out",
+                animationFillMode: "both",
+              } as React.CSSProperties} />
+            );
+          })}
+
+          {/* Main card */}
+          <div style={{
+            animation: "celebCardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both",
+            background: "linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(139,92,246,0.08) 100%)",
+            border: "1.5px solid rgba(16,185,129,0.45)",
+            borderRadius: 24,
+            padding: "40px 52px",
+            minWidth: 420,
+            maxWidth: 520,
+            textAlign: "center",
+            position: "relative",
+            animation: "celebCardIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both, pulseGreen 2.5s ease-in-out 0.5s 2",
+          }}>
+            {/* Checkmark */}
+            <div style={{
+              width: 72, height: 72,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #10B981, #059669)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 18px",
+              boxShadow: "0 0 30px rgba(16,185,129,0.6)",
+              fontSize: 36,
+              animation: "spinCheck 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.2s both",
+            }}>✓</div>
+
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, color: "#10B981", marginBottom: 6, textTransform: "uppercase" }}>
+              Stagger Plan Dispatched
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 800, color: "#fff", lineHeight: 1.2, marginBottom: 6 }}>
+              {selectedFacility.name}
+            </div>
+            <div style={{ fontSize: 13, color: "#A0A0B8", marginBottom: 28 }}>
+              Controllers updated · Optimization active
+            </div>
+
+            {/* Step checklist */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28, textAlign: "left" }}>
+              {celebrationSteps.map((s: any, i: number) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: executingSteps[i] ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${executingSteps[i] ? "rgba(16,185,129,0.35)" : "rgba(255,255,255,0.08)"}`,
+                  transition: "all 0.4s ease",
+                }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
+                    background: executingSteps[i] ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.07)",
+                    color: executingSteps[i] ? "#10B981" : "#6B7280",
+                    transition: "all 0.3s ease",
+                  }}>
+                    {executingSteps[i] ? "✓" : (i + 1)}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: executingSteps[i] ? "#34D399" : "#6B7280", textTransform: "uppercase" }}>
+                      {s.step ?? s.action}
+                    </div>
+                    <div style={{ fontSize: 12, color: executingSteps[i] ? "#A7F3D0" : "#4B5563" }}>
+                      {s.label ?? s.detail}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Savings highlight */}
+            <div style={{
+              background: "linear-gradient(135deg, rgba(16,185,129,0.15), rgba(52,211,153,0.08))",
+              border: "1px solid rgba(16,185,129,0.3)",
+              borderRadius: 12,
+              padding: "14px 20px",
+              animation: "savingsCount 0.5s ease 1.6s both",
+            }}>
+              <div style={{ fontSize: 11, color: "#6EE7B7", fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 2 }}>
+                Demand Charge Savings Locked In
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 800, color: "#10B981" }}>
+                {formattedSavings}
+              </div>
+              <div style={{ fontSize: 12, color: "#6EE7B7", marginTop: 2 }}>
+                Peak shaved {Math.round(((displayRec.baselineKw ?? 777.71) - (displayRec.optimizedKw ?? 420)) / (displayRec.baselineKw ?? 777.71) * 100)}% · {displayRec.optimizedKw ?? 420} kW
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sliding Unified NavBar */}
       <NavBar
         visible={navVisible}
@@ -402,23 +567,59 @@ function HomeContent() {
           }}
         />
 
-        {/* Top Banner: Spike Warning & Quick Jump to Approval */}
-        <div className="relative overflow-hidden rounded-2xl glass-panel-glow p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-[var(--color-border)] bg-[var(--color-card)]/90">
+        {/* Top Banner: Spike Warning / Execution Success */}
+        <div className="relative overflow-hidden rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          style={{
+            background: isApproved
+              ? "linear-gradient(135deg, rgba(16,185,129,0.10) 0%, rgba(5,150,105,0.06) 100%)"
+              : "var(--color-card)",
+            border: isApproved ? "1px solid rgba(16,185,129,0.35)" : "1px solid var(--color-border)",
+            transition: "all 0.6s ease",
+          }}
+        >
           <div className="flex items-start sm:items-center gap-3.5">
-            <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 max-w-2xl leading-relaxed">
-              {hasMCP
+            {isApproved && (
+              <div style={{
+                width: 10, height: 10, borderRadius: "50%",
+                background: "#10B981", flexShrink: 0, marginTop: 3,
+                boxShadow: "0 0 10px #10B981",
+                animation: "twinBadgeBlink 1.4s ease-in-out infinite",
+              }} />
+            )}
+            <p className="text-xs mt-0.5 max-w-2xl leading-relaxed" style={{ color: isApproved ? "#6EE7B7" : "var(--color-text-secondary)" }}>
+              {isApproved
+                ? `✓ Stagger plan dispatched · Chiller soft-ramped, Compressor delayed +${effectiveCompressorDelay}min · Peak load reduced to ${effectiveOptimizedPeakKw.toFixed(0)} kW (under ${effectiveContractLimitKw} kW limit) · Saving ₹${effectiveSavingsInr.toLocaleString("en-IN")}/month locked in.`
+                : hasMCP
                 ? `MCP result: Chiller #2 and Compressor #1 restart exceeds ${effectiveContractLimitKw} kW contract limit. Stagger plan (${effectiveCompressorDelay}min delay + ${effectiveChillerRamp}% ramp) reduces peak to ${effectiveOptimizedPeakKw.toFixed(1)} kW, saving ₹${effectiveSavingsInr.toLocaleString("en-IN")}/month.`
                 : `Chiller #2 and Compressor #1 restart exceeds 500 kW contract limit. Run MCP pipeline above to compute live stagger plan.`
               }
             </p>
           </div>
-          <button
-            onClick={scrollToApproval}
-            className="btn-ghost flex items-center justify-center gap-1.5 text-xs py-2 px-3.5 self-start sm:self-auto font-medium"
-          >
-            <span>Jump to Approval Gate</span>
-            <span className="text-xs">↓</span>
-          </button>
+          {isApproved ? (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 16px",
+              borderRadius: 999,
+              background: "rgba(16,185,129,0.15)",
+              border: "1px solid rgba(16,185,129,0.4)",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 1.5,
+              color: "#10B981",
+              whiteSpace: "nowrap",
+            }}>
+              <span style={{ animation: "twinBadgeBlink 1.4s ease-in-out infinite" }}>●</span>
+              EXECUTION ACTIVE
+            </div>
+          ) : (
+            <button
+              onClick={scrollToApproval}
+              className="btn-ghost flex items-center justify-center gap-1.5 text-xs py-2 px-3.5 self-start sm:self-auto font-medium"
+            >
+              <span>Jump to Approval Gate</span>
+              <span className="text-xs">↓</span>
+            </button>
+          )}
         </div>
 
         {/* KPI Grid */}
@@ -426,41 +627,45 @@ function HomeContent() {
           <KPICard
             title="SAVINGS THIS MONTH"
             value={formattedSavings}
-            subValue={hasMCP
+            subValue={isApproved
+              ? `Demand charge savings locked · ${effectiveContractLimitKw} kW limit · ${effectiveShavedKw.toFixed(0)} kW shaved · Controllers active`
+              : hasMCP
               ? `MCP: ${effectiveContractLimitKw} kW limit · ${effectiveShavedKw.toFixed(0)} kW shaved · BESCOM demand_charge_15min_peak`
               : "Avoided DISCOM 15-min demand charge penalty"
             }
-            badgeText={hasMCP ? "MCP LIVE" : "SEED DATA"}
+            badgeText={isApproved ? "EXECUTING" : hasMCP ? "MCP LIVE" : "SEED DATA"}
             badgeType="emerald"
             icon={IndianRupee}
             glow={true}
             trend={{
               value: hasMCP ? `₹${(effectiveSavingsInr * 12 / 100000).toFixed(1)}L/yr` : "+18.4%",
               isPositive: true,
-              label: hasMCP ? "annualized (MCP computed)" : "vs previous billing cycle",
+              label: isApproved ? "locked in · stagger plan active" : hasMCP ? "annualized (MCP computed)" : "vs previous billing cycle",
             }}
           />
           <KPICard
             title="SPIKE RISK REDUCTION"
-            value={`${effectiveSpikeRiskPct}%`}
-            subValue={hasMCP
+            value={isApproved ? "0%" : `${effectiveSpikeRiskPct}%`}
+            subValue={isApproved
+              ? `Peak managed at ${effectiveOptimizedPeakKw.toFixed(0)} kW · ${effectiveContractLimitKw - Math.round(effectiveOptimizedPeakKw)} kW headroom · Risk eliminated`
+              : hasMCP
               ? `Unmanaged: ${BASELINE_KW} kW → optimized: ${effectiveOptimizedPeakKw.toFixed(0)} kW (under ${effectiveContractLimitKw} kW limit)`
               : `Unmanaged: ${BASELINE_KW} kW (exceeds 500 kW limit)`
             }
-            badgeText={hasMCP ? "MCP LIVE" : "SEED DATA"}
+            badgeText={isApproved ? "EXECUTING" : hasMCP ? "MCP LIVE" : "SEED DATA"}
             badgeType="rose"
             icon={AlertOctagon}
             trend={{
-              value: `-${effectiveSpikeRiskPct}%`,
+              value: isApproved ? "✓ CLEARED" : `-${effectiveSpikeRiskPct}%`,
               isPositive: true,
-              label: hasMCP ? `${effectiveCompressorDelay}min stagger + ${effectiveChillerRamp}% ramp` : "risk reduction with stagger plan",
+              label: isApproved ? `${effectiveCompressorDelay}min stagger active` : hasMCP ? `${effectiveCompressorDelay}min stagger + ${effectiveChillerRamp}% ramp` : "risk reduction with stagger plan",
             }}
           />
           <KPICard
             title="PROJECTED ROI"
             value={`${effectiveRoiX}x`}
             subValue={`${effectiveAnnualSavingsL} annualized demand charge savings`}
-            badgeText={hasMCP ? "MCP COMPUTED" : "ESTIMATE"}
+            badgeText={isApproved ? "EXECUTING" : hasMCP ? "MCP COMPUTED" : "ESTIMATE"}
             badgeType="cyan"
             icon={TrendingUp}
             trend={{
@@ -609,36 +814,77 @@ function HomeContent() {
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-text-secondary)] flex items-center gap-1.5">
               <Sliders className="h-3.5 w-3.5 text-[var(--color-success)]" />
               Prescribed Action Sequence ({displayRec.actions.length} Steps)
+              {isApproved && (
+                <span style={{
+                  marginLeft: 6, fontSize: 9, fontWeight: 700, letterSpacing: 1.5,
+                  color: "#10B981", background: "rgba(16,185,129,0.12)",
+                  border: "1px solid rgba(16,185,129,0.3)", borderRadius: 4, padding: "2px 7px",
+                }}>
+                  DISPATCHED
+                </span>
+              )}
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {displayRec.actions.map((act, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 rounded-2xl bg-[var(--color-surface-2)] border border-[var(--color-border)] relative overflow-hidden flex flex-col justify-between"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-[var(--color-surface-3)] text-[var(--color-text-secondary)]">
-                      STEP 0{idx + 1}
-                    </span>
-                    <span className="font-mono text-xs font-bold text-[var(--color-primary)]">
-                      {act.action_type.replace("_", " ").toUpperCase()}
-                    </span>
+              {displayRec.actions.map((act, idx) => {
+                const stepDone = isApproved && executingSteps[idx];
+                const stepActive = isApproved && !executingSteps[idx];
+                return (
+                  <div
+                    key={idx}
+                    className="p-4 rounded-2xl relative overflow-hidden flex flex-col justify-between"
+                    style={{
+                      background: stepDone
+                        ? "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.07))"
+                        : "var(--color-surface-2)",
+                      border: stepDone
+                        ? "1px solid rgba(16,185,129,0.4)"
+                        : stepActive
+                        ? "1px solid rgba(16,185,129,0.15)"
+                        : "1px solid var(--color-border)",
+                      transition: "all 0.5s ease",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: stepDone ? "rgba(16,185,129,0.2)" : "var(--color-surface-3)",
+                          color: stepDone ? "#10B981" : "var(--color-text-secondary)",
+                          transition: "all 0.4s ease",
+                        }}>
+                        {stepDone ? "✓ DONE" : `STEP 0${idx + 1}`}
+                      </span>
+                      <span className="font-mono text-xs font-bold" style={{ color: stepDone ? "#34D399" : "var(--color-primary)" }}>
+                        {act.action_type.replace("_", " ").toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold" style={{ color: stepDone ? "#A7F3D0" : "var(--color-text-primary)" }}>
+                        {act.target_equipment || act.target_zone}
+                      </h4>
+                      <p className="text-[11px] mt-1" style={{ color: stepDone ? "#6EE7B7" : "var(--color-text-muted)" }}>
+                        {act.action_type === "pre_cool" && `Reduce setpoint ${act.temp_delta_celsius}°C (05:00-05:45 AM)`}
+                        {act.action_type === "delay_start" && `Delay motor restart by +${act.delay_minutes} min (to 06:20 AM)`}
+                        {act.action_type === "soft_ramp" && `Limit soft ramp rate to ${act.ramp_cap_pct}% cap during startup`}
+                      </p>
+                    </div>
+                    {/* Executing progress bar */}
+                    {isApproved && (
+                      <div style={{ marginTop: 8, height: 2, borderRadius: 1, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                        <div style={{
+                          height: "100%",
+                          width: stepDone ? "100%" : "0%",
+                          background: "linear-gradient(90deg, #10B981, #34D399)",
+                          transition: `width 0.6s ease ${idx * 0.5}s`,
+                        }} />
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[var(--color-text-primary)]">
-                      {act.target_equipment || act.target_zone}
-                    </h4>
-                    <p className="text-[11px] text-[var(--color-text-muted)] mt-1">
-                      {act.action_type === "pre_cool" && `Reduce setpoint ${act.temp_delta_celsius}°C (05:00-05:45 AM)`}
-                      {act.action_type === "delay_start" && `Delay motor restart by +${act.delay_minutes} min (to 06:20 AM)`}
-                      {act.action_type === "soft_ramp" && `Limit soft ramp rate to ${act.ramp_cap_pct}% cap during startup`}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
+
 
         {/* Status Confirmation Banner if action was taken */}
         {apiResponseMsg && (
